@@ -55,7 +55,7 @@ func CollectInfo(typ reflect.Type) (*Info, error) {
 		info.Outputs[i] = out
 		resultTypes = append(resultTypes, out)
 		info.LastIsError = out.Implements(reflect.TypeOf((*error)(nil)).Elem())
-		if !out.Implements(reflect.TypeOf((*WithResponse)(nil)).Elem()) && !info.LastIsError {
+		if !out.Implements(reflect.TypeOf((*ToResponse)(nil)).Elem()) && !info.LastIsError {
 			if info.ResponseBodyIndex != -1 {
 				return nil, errors.New("midus.Handler: multiple results trying to use response body")
 			}

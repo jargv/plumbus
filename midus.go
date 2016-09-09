@@ -3,10 +3,12 @@ package midus
 import (
 	"encoding/json"
 	"errors"
-	"github.com/jargv/midus/generate"
+	"fmt"
 	"log"
 	"net/http"
 	"reflect"
+
+	"github.com/jargv/midus/generate"
 )
 
 type adaptorFunc func(interface{}) http.HandlerFunc
@@ -14,7 +16,7 @@ type adaptorFunc func(interface{}) http.HandlerFunc
 var adaptors map[reflect.Type]adaptorFunc
 
 type FromRequest generate.FromRequest
-type WithResponse generate.WithResponse
+type ToResponse generate.ToResponse
 
 type ServeMux struct {
 	*http.ServeMux
@@ -34,6 +36,12 @@ func NewServeMux() *ServeMux {
 }
 
 func (sm *ServeMux) Handle(route string, fn interface{}) {
+	defer func() {
+		err := recover()
+		if err, ok := err.(error); ok {
+			panic(fmt.Errorf("Error while routing %s: %s", route, err.Error()))
+		}
+	}()
 	switch fn := fn.(type) {
 	case func(http.ResponseWriter, *http.Request):
 		sm.ServeMux.HandleFunc(route, fn)
@@ -118,7 +126,7 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 				continue
 			}
 
-			code, err := result.Interface().(WithResponse).WithResponse(res)
+			code, err := result.Interface().(ToResponse).ToResponse(res)
 			if err != nil {
 				http.Error(res, err.Error(), code)
 				return

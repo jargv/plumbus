@@ -130,7 +130,7 @@ func {{.target}}_adaptor(handler interface{}) http.HandlerFunc {
 						}
 					}
 				{{else}}
-					if code, err := result{{$i}}.WithResponse(res); err != nil {
+					if code, err := result{{$i}}.ToResponse(res); err != nil {
 						http.Error(res, err.Error(), code)
 						return
 					}

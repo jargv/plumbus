@@ -6,6 +6,6 @@ type FromRequest interface {
 	FromRequest(*http.Request) (int, error)
 }
 
-type WithResponse interface {
-	WithResponse(http.ResponseWriter) (int, error)
+type ToResponse interface {
+	ToResponse(http.ResponseWriter) (int, error)
 }
