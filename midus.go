@@ -17,6 +17,7 @@ var adaptors map[reflect.Type]adaptorFunc
 
 type FromRequest generate.FromRequest
 type ToResponse generate.ToResponse
+type HTTPError generate.HTTPError
 
 type ServeMux struct {
 	*http.ServeMux
@@ -81,6 +82,14 @@ func makeDynamicAdaptor(typ reflect.Type) adaptorFunc {
 	}
 }
 
+func responseError(res http.ResponseWriter, err error) {
+	if err, ok := err.(HTTPError); ok {
+		http.Error(res, err.Error(), err.ResponseCode())
+	} else {
+		http.Error(res, "", http.StatusInternalServerError)
+	}
+}
+
 func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.HandlerFunc {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		args := make([]reflect.Value, len(info.Inputs))
@@ -90,20 +99,21 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 				dec := json.NewDecoder(req.Body)
 				err := dec.Decode(arg.Interface())
 				if err != nil {
-					http.Error(res, "couldn't Parse Json: "+err.Error(), http.StatusBadRequest)
+					msg := fmt.Sprintf("error decoding json: %s", err.Error())
+					http.Error(res, msg, http.StatusBadRequest)
 					return
 				}
 			} else if info.IsPointer[i] {
 				arg.Elem().Set(reflect.New(typ.Elem()))
-				code, err := arg.Elem().Interface().(FromRequest).FromRequest(req)
+				err := arg.Elem().Interface().(FromRequest).FromRequest(req)
 				if err != nil {
-					http.Error(res, err.Error(), code)
+					responseError(res, err)
 					return
 				}
 			} else {
-				code, err := arg.Interface().(FromRequest).FromRequest(req)
+				err := arg.Interface().(FromRequest).FromRequest(req)
 				if err != nil {
-					http.Error(res, err.Error(), code)
+					responseError(res, err)
 					return
 				}
 			}
@@ -115,8 +125,8 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 			last := results[len(results)-1]
 			results = results[:len(results)-1]
 			if !last.IsNil() {
-				msg := last.Interface().(error).Error()
-				http.Error(res, msg, http.StatusInternalServerError)
+				err := last.Interface().(error)
+				responseError(res, err)
 				return
 			}
 		}
@@ -126,9 +136,9 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 				continue
 			}
 
-			code, err := result.Interface().(ToResponse).ToResponse(res)
+			err := result.Interface().(ToResponse).ToResponse(res)
 			if err != nil {
-				http.Error(res, err.Error(), code)
+				responseError(res, err)
 				return
 			}
 		}
@@ -137,7 +147,8 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 			enc := json.NewEncoder(res)
 			err := enc.Encode(results[info.ResponseBodyIndex].Interface())
 			if err != nil {
-				http.Error(res, "couldn't serialize result into json", http.StatusInternalServerError)
+				log.Printf("json encoding error: %s", err.Error())
+				http.Error(res, "", http.StatusInternalServerError)
 				return
 			}
 		}

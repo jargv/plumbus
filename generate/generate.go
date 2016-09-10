@@ -65,6 +65,14 @@ func init(){
 	midus.RegisterAdaptor(typ, {{.target}}_adaptor)
 }
 
+func responseError(res http.ResponseWriter, err error) {
+	if err, ok := err.(midus.HTTPError); ok {
+		http.Error(res, err.Error(), err.ResponseCode())
+	} else {
+		http.Error(res, "", http.StatusInternalServerError)
+	}
+}
+
 func {{.target}}_adaptor(handler interface{}) http.HandlerFunc {
 	callback := handler.(func(
 		{{range $_, $arg := .info.Inputs}}
@@ -91,8 +99,8 @@ func {{.target}}_adaptor(handler interface{}) http.HandlerFunc {
 					}
 				}
 			{{else}}
-				if code, err := arg{{$i}}.FromRequest(req); err != nil {
-					http.Error(res, err.Error(), code)
+				if err := arg{{$i}}.FromRequest(req); err != nil {
+					responseError(res, err)
 					return
 				}
 			{{end}}
@@ -112,7 +120,7 @@ func {{.target}}_adaptor(handler interface{}) http.HandlerFunc {
 		{{if $lastIsError}}
 		  if result{{$lastOutput}} != nil {
 				log.Println("unhandled error:", result{{$lastOutput}})
-				http.Error(res, "", http.StatusInternalServerError)
+				responseError(res, result{{$lastOutput}}.(error))
 				return
 			}
 		{{end}}
@@ -130,8 +138,8 @@ func {{.target}}_adaptor(handler interface{}) http.HandlerFunc {
 						}
 					}
 				{{else}}
-					if code, err := result{{$i}}.ToResponse(res); err != nil {
-						http.Error(res, err.Error(), code)
+					if err := result{{$i}}.ToResponse(res); err != nil {
+						responseError(res, err)
 						return
 					}
 				{{end}}

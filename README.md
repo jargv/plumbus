@@ -1,14 +1,14 @@
-# midus - Use any function as a net/http handler
+# midus - Turn any function into a net/http handler
 
 ## How?
-Reflection. But keep reading... there's more to it.
+Reflection. But keep reading, there's more to it.
 
 ## Isn't Reflection too slow?
-Probabaly not for many uses, *however* you can also
-run the `midus` command line tool via `go generate` to
-use code generation in place of reflection and  eliminate
-all per-request reflection. (there will still be a small
-amount of reflection during setup).
+Probabaly for some uses, *however* you can also run the
+`midus` command line tool via `go generate` to use code
+generation in place of reflection and  eliminate all
+per-request reflection. (there will still be a small amount
+of reflection during setup).
 
 ## Are there any constraints on the functions?
 Yes there are:
@@ -29,8 +29,6 @@ decoded/encoded from JSON. Supporting other formats in the
 future is possible.
 
 ##TODO
-- Create the HTTPError interface, make that work
-- Make the Code Gen match the reflection
 - Allow any parameter to be the *http.Request or
   http.ResponseWriter of a normal handler
 - Add a tutorial
