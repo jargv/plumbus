@@ -76,11 +76,11 @@ func responseError(res http.ResponseWriter, err error) {
 func {{.target}}_adaptor(handler interface{}) http.HandlerFunc {
 	callback := handler.(func(
 		{{range $_, $arg := .info.Inputs}}
-		{{typename $arg}},
+			{{typename $arg}},
 		{{end}}
 	)(
 		{{range $_, $output := .info.Outputs}}
-		{{typename $output}},
+			{{typename $output}},
 		{{end}}
 	))
 
@@ -88,8 +88,8 @@ func {{.target}}_adaptor(handler interface{}) http.HandlerFunc {
 		{{$info := .info}}
 		{{range $i, $arg := $info.Inputs}}
 			var arg{{$i}} {{typename $arg}}
-		  {{if eq $i $info.RequestBodyIndex}}
-			  {
+			{{if eq $i $info.RequestBodyIndex}}
+				{
 					dec := json.NewDecoder(req.Body)
 
 					if err := dec.Decode(&arg{{$i}}); err != nil {
@@ -110,15 +110,16 @@ func {{.target}}_adaptor(handler interface{}) http.HandlerFunc {
 		{{range $i, $_ := .info.Outputs}}
 			result{{$i}} {{if eq $i $lastOutput}} := {{else}} , {{end}}
 		{{end}}
+
 		callback(
 			{{range $i, $_ := .info.Inputs}}
-			  arg{{$i}},
+			arg{{$i}},
 			{{end}}
 		)
 
 		{{$lastIsError := .info.LastIsError}}
 		{{if $lastIsError}}
-		  if result{{$lastOutput}} != nil {
+			if result{{$lastOutput}} != nil {
 				log.Println("unhandled error:", result{{$lastOutput}})
 				responseError(res, result{{$lastOutput}}.(error))
 				return
@@ -126,9 +127,9 @@ func {{.target}}_adaptor(handler interface{}) http.HandlerFunc {
 		{{end}}
 
 		{{range $i, $_ := .info.Outputs}}
-		  {{if or (ne $i $lastOutput) (not $lastIsError)}}
-			  {{if eq $i $info.ResponseBodyIndex}}
-				  {
+			{{if or (ne $i $lastOutput) (not $lastIsError)}}
+				{{if eq $i $info.ResponseBodyIndex}}
+					{
 						enc := json.NewEncoder(res)
 						err := enc.Encode(result{{$i}})
 						if err != nil {
