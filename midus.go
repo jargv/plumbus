@@ -1,3 +1,7 @@
+// A Flexible ServeMux and HandlerFunc - Implement interfaces to
+// determine how function arguments, results, and errors are mapped to
+// the http request and response. Then write functions instead of
+// http.Handlers or http.HandlerFunc's
 package midus
 
 import (
