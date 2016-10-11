@@ -17,9 +17,10 @@ type FromRequest interface {
 ```
 
 However, if (at most) one parameter does *not* implement this
-interface, then that parameter will be decoded from json
-instead, by using the standard encoding/json package
-(supporting other types in the future is possible).
+interface, then that parameter will be decoded from the
+request body as json instead, by using the standard
+encoding/json package (supporting other types in the future
+is possible).
 
 ## Return Values
 Return values must implement `midus.ToResponse`, which looks
@@ -32,9 +33,10 @@ type ToResponse interface {
 ```
 
 However, if (at most) one return does *not* implement this
-interface, then that return value will be encoded to json
-instead, by using the standard encoding/json package
-(supporting other types in the future is possible).
+interface, then that return value will be encoded to the
+response body as json instead, by using the standard
+encoding/json package (supporting other types in the future
+is possible).
 
 ## Errors
 If a function returns an error (must be the last return
@@ -43,8 +45,9 @@ and no additional information about the error will be shown.
 *However*, if the error also implements the
 `midus.HTTPError` interface then the response code will be
 obtained by calling `error.ResponseCode()`, and the response
-body will be obtained from calling `error.Error()`. The
-`midux.HTTPError` interface looks like:
+body will be obtained from calling `error.Error()`. The same
+is true for errors returned by calls to `FromRequest` and
+`ToRequest`. The `midux.HTTPError` interface looks like:
 
 ```go
 type HTTPError interface {
