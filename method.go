@@ -6,52 +6,34 @@ import (
 	"strings"
 )
 
-type Method struct {
-	GET    interface{}
-	POST   interface{}
-	PUT    interface{}
-	PATCH  interface{}
-	DELETE interface{}
+type ByMethod struct {
+	GET, POST, PUT, PATCH, DELETE, OPTIONS interface{}
 }
 
 type method struct {
-	GET    http.Handler
-	POST   http.Handler
-	PUT    http.Handler
-	PATCH  http.Handler
-	DELETE http.Handler
-
-	acceptedMethods string
+	GET, POST, PUT, PATCH, DELETE, OPTIONS http.Handler
+	acceptedMethods                        string
 }
 
-func (m *Method) compile() *method {
+func (m *ByMethod) compile() *method {
 	result := &method{}
 	accepted := []string{}
 
-	if m.GET != nil {
-		result.GET = HandlerFunc(m.GET)
-		accepted = append(accepted, "GET")
+	handle := func(name string, handler interface{}) http.Handler {
+		if handler == nil {
+			return nil
+		}
+
+		accepted = append(accepted, name)
+		return HandlerFunc(handler)
 	}
 
-	if m.POST != nil {
-		result.POST = HandlerFunc(m.POST)
-		accepted = append(accepted, "POST")
-	}
-
-	if m.PUT != nil {
-		result.PUT = HandlerFunc(m.PUT)
-		accepted = append(accepted, "PUT")
-	}
-
-	if m.PATCH != nil {
-		result.PATCH = HandlerFunc(m.PATCH)
-		accepted = append(accepted, "PATCH")
-	}
-
-	if m.DELETE != nil {
-		result.DELETE = HandlerFunc(m.DELETE)
-		accepted = append(accepted, "DELETE")
-	}
+	result.GET = handle("GET", m.GET)
+	result.POST = handle("POST", m.POST)
+	result.PUT = handle("PUT", m.PUT)
+	result.PATCH = handle("PATCH", m.PATCH)
+	result.DELETE = handle("DELETE", m.DELETE)
+	result.OPTIONS = handle("OPTIONS", m.OPTIONS)
 
 	if len(accepted) == 0 {
 		result.acceptedMethods = "<none>"
@@ -75,11 +57,14 @@ func (m *method) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		handler = m.PATCH
 	case "DELETE":
 		handler = m.DELETE
+	case "OPTIONS":
+		handler = m.OPTIONS
 	}
 
 	if handler == nil {
 		msg := fmt.Sprintf("method %s not allowed, expected {%s}", m.acceptedMethods)
 		http.Error(res, msg, http.StatusMethodNotAllowed)
+		return
 	}
 
 	handler.ServeHTTP(res, req)

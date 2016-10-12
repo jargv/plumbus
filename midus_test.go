@@ -112,3 +112,44 @@ func TestRequestParam(t *testing.T) {
 		t.Errorf(`param != "awesome", param == %q`, param)
 	}
 }
+
+func TestRequestMethod(t *testing.T) {
+	handler := HandlerFunc(&ByMethod{
+		PUT: HandlerFunc(func() string {
+			return "nachos"
+		}),
+	})
+
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	resp, err := http.Get(server.URL)
+	if err != nil {
+		t.Errorf(": %#v\n", err)
+	}
+
+	if resp.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf(
+			`StatusCode != http.StatusMethodNotAllowed, StatusCode = %s`,
+			resp.Status,
+		)
+	}
+
+	req, err := http.NewRequest("PUT", server.URL, nil)
+	if err != nil {
+		t.Errorf("couldn't make request: %#v\n", err)
+	}
+
+	client := &http.Client{}
+	resp, err = client.Do(req)
+	if err != nil {
+		t.Errorf("couldn't make request: %#v\n", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf(
+			`StatusCode != http.StatusOK, StatusCode = %s`,
+			resp.Status,
+		)
+	}
+}

@@ -47,18 +47,30 @@ func (sm *ServeMux) Handle(route string, fn interface{}) {
 			panic(fmt.Errorf("Error while routing %s: %s", route, err.Error()))
 		}
 	}()
-	switch fn := fn.(type) {
-	case func(http.ResponseWriter, *http.Request):
-		sm.ServeMux.HandleFunc(route, fn)
-	case http.Handler:
-		sm.ServeMux.Handle(route, fn)
-	default:
-		sm.ServeMux.Handle(route, HandlerFunc(fn))
-	}
+
+	sm.ServeMux.Handle(route, HandlerFunc(fn))
 }
 
 func HandlerFunc(handler interface{}) http.Handler {
+	switch val := handler.(type) {
+	case func(http.ResponseWriter, *http.Request):
+		return http.HandlerFunc(val)
+	case http.Handler:
+		return val
+	case ByMethod:
+		return val.compile()
+	case *ByMethod:
+		return val.compile()
+	}
+
 	typ := reflect.TypeOf(handler)
+	if typ.Kind() != reflect.Func {
+		panic(fmt.Sprintf(
+			"midus.HandlerFunc called on non-function type %v",
+			typ,
+		))
+	}
+
 	adaptor, exists := adaptors[typ]
 	if !exists {
 		log.Printf("WARNING: function of type `%v` using slow reflection adaptor", typ)

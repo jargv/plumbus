@@ -32,7 +32,7 @@ type ToResponse interface {
 }
 ```
 
-However, if (at most) one return does *not* implement this
+However, if (at most) one return value does *not* implement this
 interface, then that return value will be encoded to the
 response body as json instead, by using the standard
 encoding/json package (supporting other types in the future
