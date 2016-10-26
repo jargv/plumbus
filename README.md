@@ -1,10 +1,9 @@
 # midus - Turn any function into a net/http handler
 
-A Flexible ServeMux and HandlerFunc - Implement interfaces
-to determine how function arguments, results, and errors are
-mapped to the http request and response. Then write
-functions instead of `http.Handlers` or
-`http.HandlerFunc`'s.
+A Flexible ServeMux and HandlerFunc - Use any function as a
+handler, as long as you implement a few interfaces to define
+how that function's arguments, results, and errors are mapped to
+the http request and response.
 
 ## Arguments
 Arguments must implement `midus.FromRequest`, which looks
@@ -62,6 +61,19 @@ Probabaly for some uses, *however* you can also run the
 generation in place of reflection and  eliminate all
 per-request reflection. (there will still be a small amount
 of reflection during setup).
+
+## Routing on Methods
+To route by HTTP methods, just pass a value of type
+midus.ByMethod as your handler. This type maps from HTTP
+methods (flexible) handler functions.
+```go
+mux := midus.NewServeMux()
+mux.Handle("/user", &midus.ByMethod{
+  GET: getUser,
+  POST: createUser
+  //other methods supported, but optional
+})
+```
 
 ##TODO
 - Make generate work with methods
