@@ -65,15 +65,25 @@ of reflection during setup).
 ## Routing on Methods
 To route by HTTP methods, just pass a value of type
 midus.ByMethod as your handler. This type maps from HTTP
-methods (flexible) handler functions.
+methods to (flexible) handler functions.
 ```go
 mux := midus.NewServeMux()
 mux.Handle("/user", &midus.ByMethod{
   GET: getUser,
   POST: createUser
-  //other methods supported, but optional
+  //other methods supported, but all are optional
 })
 ```
+
+##Path Parameters
+Path parameters are also supported. Example:
+```go
+//handles cases such as /user/10/info
+mux.Handle("/user/:userId/info", userInfo)
+```
+the path parameters will be translated into request
+parameters (available on req.URL.Query() before your
+handler is called)
 
 ##TODO
 - Make generate work with methods
