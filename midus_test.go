@@ -153,3 +153,30 @@ func TestRequestMethod(t *testing.T) {
 		)
 	}
 }
+
+type userId string
+
+func (ui *userId) FromRequest(req *http.Request) error {
+	*ui = userId(req.URL.Query().Get("userId"))
+	return nil
+}
+
+func TestPathParams(t *testing.T) {
+	var result string
+	mux := NewServeMux()
+	mux.Handle("/user/:userId/name", func(id userId) {
+		result = string(id)
+	})
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	_, err := http.Get(server.URL + "/user/10/name")
+	if err != nil {
+		t.Fatalf("couldn't make request: %v\n", err)
+	}
+
+	if result != "10" {
+		t.Fatalf(`result != "10", result == "%v"`, result)
+	}
+}

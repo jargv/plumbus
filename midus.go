@@ -23,10 +23,6 @@ type FromRequest generate.FromRequest
 type ToResponse generate.ToResponse
 type HTTPError generate.HTTPError
 
-type ServeMux struct {
-	*http.ServeMux
-}
-
 func RegisterAdaptor(typ reflect.Type, adaptor adaptorFunc) {
 	if adaptors == nil {
 		adaptors = make(map[reflect.Type]adaptorFunc)
@@ -34,9 +30,13 @@ func RegisterAdaptor(typ reflect.Type, adaptor adaptorFunc) {
 	adaptors[typ] = adaptor
 }
 
+type ServeMux struct {
+	*Paths
+}
+
 func NewServeMux() *ServeMux {
 	return &ServeMux{
-		ServeMux: http.NewServeMux(),
+		Paths: &Paths{},
 	}
 }
 
@@ -48,7 +48,7 @@ func (sm *ServeMux) Handle(route string, fn interface{}) {
 		}
 	}()
 
-	sm.ServeMux.Handle(route, HandlerFunc(fn))
+	sm.Paths.Handle(route, HandlerFunc(fn))
 }
 
 func HandlerFunc(handler interface{}) http.Handler {
