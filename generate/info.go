@@ -39,7 +39,7 @@ func CollectInfo(typ reflect.Type) (*Info, error) {
 
 		if !implementsInterface {
 			if info.RequestBodyIndex != -1 {
-				return nil, errors.New("midus.Handler: multiple args trying to use request body")
+				return nil, errors.New("plumbus.Handler: multiple args trying to use request body")
 			}
 			info.RequestBodyIndex = i
 		}
@@ -57,7 +57,7 @@ func CollectInfo(typ reflect.Type) (*Info, error) {
 		info.LastIsError = out.Implements(reflect.TypeOf((*error)(nil)).Elem())
 		if !out.Implements(reflect.TypeOf((*ToResponse)(nil)).Elem()) && !info.LastIsError {
 			if info.ResponseBodyIndex != -1 {
-				return nil, errors.New("midus.Handler: multiple results trying to use response body")
+				return nil, errors.New("plumbus.Handler: multiple results trying to use response body")
 			}
 			info.ResponseBodyIndex = i
 		}

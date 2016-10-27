@@ -17,7 +17,7 @@ type generator struct {
 func main() {
 	log.SetFlags(0)
 	if len(os.Args) != 2 {
-		log.Println("midus requires an argument to generate adapter for")
+		log.Println("plumbus requires an argument to generate adapter for")
 	}
 	dir, err := os.Getwd()
 	if err != nil {
@@ -25,7 +25,7 @@ func main() {
 	}
 	target := os.Args[1]
 	g := generator{
-		Path:   path.Join(dir, target+".midus-generated.go"),
+		Path:   path.Join(dir, target+".plumbus-generated.go"),
 		Pkg:    os.Getenv("GOPACKAGE"),
 		Target: target,
 	}
@@ -34,7 +34,7 @@ func main() {
 }
 
 func (g *generator) generate() {
-	goFile := path.Join(os.TempDir(), "midus-generator.go")
+	goFile := path.Join(os.TempDir(), "plumbus-generator.go")
 	file, err := os.Create(goFile)
 	if err != nil {
 		panic(err)
@@ -60,7 +60,7 @@ var generatorTemplate = template.Must(template.New("generator").Parse(`
 package main
 
 import (
-	"github.com/jargv/midus/generate"
+	"github.com/jargv/plumbus/generate"
 	"os"
 	"log"
 )

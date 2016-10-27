@@ -2,7 +2,7 @@
 // determine how function arguments, results, and errors are mapped to
 // the http request and response. Then write functions instead of
 // http.Handlers or http.HandlerFunc's
-package midus
+package plumbus
 
 import (
 	"encoding/json"
@@ -12,7 +12,7 @@ import (
 	"net/http"
 	"reflect"
 
-	"github.com/jargv/midus/generate"
+	"github.com/jargv/plumbus/generate"
 )
 
 type adaptorFunc func(interface{}) http.HandlerFunc
@@ -66,7 +66,7 @@ func HandlerFunc(handler interface{}) http.Handler {
 	typ := reflect.TypeOf(handler)
 	if typ.Kind() != reflect.Func {
 		panic(fmt.Sprintf(
-			"midus.HandlerFunc called on non-function type %v",
+			"plumbus.HandlerFunc called on non-function type %v",
 			typ,
 		))
 	}
@@ -88,7 +88,7 @@ func makeDynamicAdaptor(typ reflect.Type) adaptorFunc {
 	return func(handler interface{}) http.HandlerFunc {
 		val := reflect.ValueOf(handler)
 		if typ != val.Type() {
-			panic(errors.New("internal midus error. Mismatch of types."))
+			panic(errors.New("internal plumbus error. Mismatch of types."))
 		}
 		info, err := generate.CollectInfo(typ)
 		if err != nil {

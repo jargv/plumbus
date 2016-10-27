@@ -1,4 +1,4 @@
-# midus - Turn any function into a net/http handler
+# plumbus - Turn any function into a net/http handler
 
 A Flexible ServeMux and HandlerFunc - Use any function as a
 handler, as long as you implement a few interfaces to define
@@ -6,7 +6,7 @@ how that function's arguments, results, and errors are mapped to
 the http request and response.
 
 ## Arguments
-Arguments must implement `midus.FromRequest`, which looks
+Arguments must implement `plumbus.FromRequest`, which looks
 like:
 
 ```go
@@ -22,7 +22,7 @@ encoding/json package (supporting other types in the future
 is possible).
 
 ## Return Values
-Return values must implement `midus.ToResponse`, which looks
+Return values must implement `plumbus.ToResponse`, which looks
 like:
 
 ```go
@@ -42,7 +42,7 @@ If a function returns an error (must be the last return
 value), then the result will be a 500 internal server error
 and no additional information about the error will be shown.
 *However*, if the error also implements the
-`midus.HTTPError` interface then the response code will be
+`plumbus.HTTPError` interface then the response code will be
 obtained by calling `error.ResponseCode()`, and the response
 body will be obtained from calling `error.Error()`. The same
 is true for errors returned by calls to `FromRequest` and
@@ -57,18 +57,18 @@ type HTTPError interface {
 
 ## Isn't Reflection too slow?
 Probabaly for some uses, *however* you can also run the
-`midus` command line tool via `go generate` to use code
+`plumbus` command line tool via `go generate` to use code
 generation in place of reflection and  eliminate all
 per-request reflection. (there will still be a small amount
 of reflection during setup).
 
 ## Routing on Methods
 To route by HTTP methods, just pass a value of type
-midus.ByMethod as your handler. This type maps from HTTP
+plumbus.ByMethod as your handler. This type maps from HTTP
 methods to (flexible) handler functions.
 ```go
-mux := midus.NewServeMux()
-mux.Handle("/user", &midus.ByMethod{
+mux := plumbus.NewServeMux()
+mux.Handle("/user", &plumbus.ByMethod{
   GET: getUser,
   POST: createUser
   //other methods supported, but all are optional
