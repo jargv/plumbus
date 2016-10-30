@@ -98,10 +98,21 @@ func makeDynamicAdaptor(typ reflect.Type) adaptorFunc {
 	}
 }
 
-func responseError(res http.ResponseWriter, err error) {
-	if err, ok := err.(HTTPError); ok {
-		http.Error(res, err.Error(), err.ResponseCode())
+func printRequestError(req *http.Request, err error) {
+	log.Printf(
+		"error handling request: '%v'\n"+
+			"request: %s %s",
+		err,
+		req.Method,
+		req.URL.Path,
+	)
+}
+
+func ResponseError(res http.ResponseWriter, req *http.Request, err error) {
+	if httperr, ok := err.(HTTPError); ok {
+		http.Error(res, httperr.Error(), httperr.ResponseCode())
 	} else {
+		printRequestError(req, err)
 		http.Error(res, "", http.StatusInternalServerError)
 	}
 }
@@ -123,13 +134,13 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 				arg.Elem().Set(reflect.New(typ.Elem()))
 				err := arg.Elem().Interface().(FromRequest).FromRequest(req)
 				if err != nil {
-					responseError(res, err)
+					ResponseError(res, req, err)
 					return
 				}
 			} else {
 				err := arg.Interface().(FromRequest).FromRequest(req)
 				if err != nil {
-					responseError(res, err)
+					ResponseError(res, req, err)
 					return
 				}
 			}
@@ -142,7 +153,7 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 			results = results[:len(results)-1]
 			if !last.IsNil() {
 				err := last.Interface().(error)
-				responseError(res, err)
+				ResponseError(res, req, err)
 				return
 			}
 		}
@@ -154,7 +165,7 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 
 			err := result.Interface().(ToResponse).ToResponse(res)
 			if err != nil {
-				responseError(res, err)
+				ResponseError(res, req, err)
 				return
 			}
 		}
