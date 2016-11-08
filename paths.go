@@ -8,12 +8,13 @@ import (
 )
 
 type Paths struct {
-	handler   http.Handler
-	subpaths  map[string]*Paths
-	variables map[string]*Paths
+	handler         http.Handler
+	subpaths        map[string]*Paths
+	variables       map[string]*Paths
+	originalHandler interface{}
 }
 
-func (p *Paths) Handle(path string, handler http.Handler) {
+func (p *Paths) Handle(path string, handler interface{}) {
 	segments := getSegments(path)
 	success := p.insertSegments(segments, handler)
 	if !success {
@@ -22,7 +23,7 @@ func (p *Paths) Handle(path string, handler http.Handler) {
 	}
 }
 
-func (p *Paths) insertSegments(segments []string, handler http.Handler) bool {
+func (p *Paths) insertSegments(segments []string, handler interface{}) bool {
 	if p.subpaths == nil {
 		p.subpaths = map[string]*Paths{}
 	}
@@ -34,7 +35,8 @@ func (p *Paths) insertSegments(segments []string, handler http.Handler) bool {
 		if p.handler != nil {
 			return false
 		}
-		p.handler = handler
+		p.handler = HandlerFunc(handler)
+		p.originalHandler = handler
 		return true
 	}
 
@@ -98,6 +100,24 @@ func (p *Paths) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	}
 
 	handler.ServeHTTP(res, req)
+}
+
+func (p *Paths) flatten() map[string]interface{} {
+	res := map[string]interface{}{}
+	p.flattenMap("", res)
+	return res
+}
+
+func (p *Paths) flattenMap(path string, m map[string]interface{}) {
+	if p.originalHandler != nil {
+		m[path] = p.originalHandler
+	}
+	for p, sub := range p.subpaths {
+		sub.flattenMap(path+"/"+p, m)
+	}
+	for p, sub := range p.variables {
+		sub.flattenMap(path+"/:"+p, m)
+	}
 }
 
 func getSegments(path string) []string {

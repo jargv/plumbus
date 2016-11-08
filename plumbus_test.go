@@ -3,6 +3,7 @@ package plumbus
 import (
 	"bytes"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -179,4 +180,32 @@ func TestPathParams(t *testing.T) {
 	if result != "10" {
 		t.Fatalf(`result != "10", result == "%v"`, result)
 	}
+}
+
+func TestDocumentation(t *testing.T) {
+	mux := NewServeMux()
+	type user struct {
+		Name string
+		Age  int
+	}
+
+	type result struct {
+		Role   string
+		Id     int
+		User   *user
+		Thing1 *int
+		Thing2 []int
+		Thing3 []*int
+		Thing4 []**int
+		Thing5 map[string]*user
+	}
+
+	mux.Handle("/users/:id/details", func(u user) *result {
+		return nil
+	})
+
+	docs := mux.Documentation()
+
+	bytes, _ := json.MarshalIndent(docs, "", "  ")
+	log.Printf("string(bytes):\n%s", string(bytes))
 }
