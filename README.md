@@ -46,7 +46,7 @@ and no additional information about the error will be shown.
 obtained by calling `error.ResponseCode()`, and the response
 body will be obtained from calling `error.Error()`. The same
 is true for errors returned by calls to `FromRequest` and
-`ToRequest`. The `midux.HTTPError` interface looks like:
+`ToRequest`. The `plumbus.HTTPError` interface looks like:
 
 ```go
 type HTTPError interface {
@@ -88,3 +88,5 @@ handler is called)
 ##TODO
 - Make generate work with methods
 - Add a tutorial
+- Add plumbus.Params type
+- Document the automatic documentation feature
