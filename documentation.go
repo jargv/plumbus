@@ -3,6 +3,7 @@ package plumbus
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"reflect"
 
 	"github.com/jargv/plumbus/generate"
@@ -13,6 +14,7 @@ type Documentation struct {
 }
 
 type Endpoint struct {
+	Method       string `json:"method,omitempty"`
 	Path         string `json:"path"`
 	RequestBody  *Body  `json:"requestBody,omitempty"`
 	ResponseBody *Body  `json:"responseBody,omitempty"`
@@ -29,16 +31,59 @@ func (sm *ServeMux) Documentation() *Documentation {
 	}
 
 	for path, handler := range sm.Paths.flatten() {
-		e := handlerToEndpoint(handler)
-		e.Path = path
-		d.Endpoints = append(d.Endpoints, e)
+		es := handlerToEndpoints(handler)
+		for _, e := range es {
+			e.Path = path
+			d.Endpoints = append(d.Endpoints, e)
+		}
 	}
 
 	return d
 }
 
-func handlerToEndpoint(handler interface{}) *Endpoint {
+func handlerToEndpoints(handler interface{}) []*Endpoint {
+	switch val := handler.(type) {
+	case http.HandlerFunc, func(http.ResponseWriter, *http.Request):
+		return []*Endpoint{&Endpoint{}}
+
+	case ByMethod:
+		return methodHandlerToEndpoints(&val)
+
+	case *ByMethod:
+		return methodHandlerToEndpoints(val)
+
+	default:
+		return []*Endpoint{handlerFunctionToEndpoint(handler)}
+	}
+}
+
+func methodHandlerToEndpoints(handlers *ByMethod) []*Endpoint {
+	var result []*Endpoint
+
+	addToResult := func(method string, handler interface{}) {
+		if handler != nil {
+			e := handlerFunctionToEndpoint(handler)
+			e.Method = method
+			result = append(result, e)
+		}
+	}
+
+	addToResult("GET", handlers.GET)
+	addToResult("POST", handlers.POST)
+	addToResult("PUT", handlers.PUT)
+	addToResult("PATCH", handlers.PATCH)
+	addToResult("DELETE", handlers.DELETE)
+	addToResult("OPTIONS", handlers.OPTIONS)
+
+	return result
+}
+
+func handlerFunctionToEndpoint(handler interface{}) *Endpoint {
 	typ := reflect.TypeOf(handler)
+	if typ.Kind() != reflect.Func {
+		return &Endpoint{}
+	}
+
 	info, err := generate.CollectInfo(typ)
 	if err != nil {
 		panic(fmt.Errorf("error generating documentation: %v", err))
@@ -60,14 +105,14 @@ func handlerToEndpoint(handler interface{}) *Endpoint {
 }
 
 func body(typ reflect.Type) *Body {
-	ex := example(typ).Interface()
+	ex := deepZero(typ).Interface()
 	log.Printf("ex: %#v", ex)
 	return &Body{
 		Example: ex,
 	}
 }
 
-func example(typ reflect.Type) reflect.Value {
+func deepZero(typ reflect.Type) reflect.Value {
 	needsExample := func(v reflect.Value) bool {
 		isPtrOrSliceOrMap := v.Kind() == reflect.Ptr || v.Kind() == reflect.Slice || v.Kind() == reflect.Map
 		canSet := isPtrOrSliceOrMap && v.CanSet()
@@ -75,7 +120,7 @@ func example(typ reflect.Type) reflect.Value {
 	}
 
 	if typ.Kind() == reflect.Ptr {
-		val := example(typ.Elem())
+		val := deepZero(typ.Elem())
 		if val.CanAddr() {
 			return val.Addr()
 		} else {
@@ -87,7 +132,7 @@ func example(typ reflect.Type) reflect.Value {
 		slice := reflect.MakeSlice(typ, 1, 1)
 		val := slice.Index(0)
 		if needsExample(val) {
-			val.Set(example(typ.Elem()))
+			val.Set(deepZero(typ.Elem()))
 		}
 		return slice
 	}
@@ -95,8 +140,8 @@ func example(typ reflect.Type) reflect.Value {
 	if typ.Kind() == reflect.Map {
 		log.Println("doing a map")
 		m := reflect.MakeMap(typ)
-		key := example(typ.Key())
-		val := example(typ.Elem())
+		key := deepZero(typ.Key())
+		val := deepZero(typ.Elem())
 		m.SetMapIndex(key, val)
 		return m
 	}
@@ -110,7 +155,7 @@ func example(typ reflect.Type) reflect.Value {
 	for i := 0; i < val.NumField(); i++ {
 		field := val.Field(i)
 		if needsExample(field) {
-			val.Field(i).Set(example(val.Field(i).Type()))
+			val.Field(i).Set(deepZero(val.Field(i).Type()))
 		}
 	}
 	return val

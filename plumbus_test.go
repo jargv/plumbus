@@ -182,6 +182,29 @@ func TestPathParams(t *testing.T) {
 	}
 }
 
+type UserId struct {
+}
+
+func (ui *UserId) FromRequest(req *http.Request) error {
+	return nil
+}
+
+type User struct {
+	Name string `json:"name"`
+	Age  int    `json:"age"`
+}
+
+type UserRepo struct {
+}
+
+func (ur *UserRepo) FindById(id UserId) (*User, error) {
+	return nil, nil
+}
+
+func (ur *UserRepo) Edit(id UserId, user *User) error {
+	return nil
+}
+
 func TestDocumentation(t *testing.T) {
 	mux := NewServeMux()
 	type user struct {
@@ -200,9 +223,20 @@ func TestDocumentation(t *testing.T) {
 		Thing5 map[string]*user
 	}
 
-	mux.Handle("/users/:id/details", func(u user) *result {
+	users := UserRepo{}
+
+	mux.Handle("/users/:userId/details", func(u user) *result {
 		return nil
 	})
+
+	mux.Handle("/users/:userId", ByMethod{
+		GET: users.FindById,
+		PUT: users.Edit,
+	})
+
+	mux.Handle("/standerd/handler", func(http.ResponseWriter, *http.Request) {})
+
+	mux.Handle("/any/body", func(interface{}) {})
 
 	docs := mux.Documentation()
 
