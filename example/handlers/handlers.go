@@ -38,3 +38,32 @@ func EchoParam(message messageQueryParam) map[string]string {
 func Error() error {
 	return plumbus.Errorf(404, "this is an error")
 }
+
+type User struct {
+	DisplayName string
+}
+
+func (example *User) Documentation() string {
+	*example = User{
+		DisplayName: "Some Guy",
+	}
+	return `
+	  This represents the User
+	`
+}
+
+type userIdQueryParam int
+
+func (userIdQueryParam) Documentation() string {
+	return `
+	  the id of the user
+	`
+}
+
+func EditUser(id userIdQueryParam, user *User) {
+
+}
+
+func GetUser(id userIdQueryParam) *User {
+	return nil
+}

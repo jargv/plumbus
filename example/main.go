@@ -20,6 +20,13 @@ func main() {
 	mux.Handle("/count", counter.Count)
 	mux.Handle("/error", handlers.Error)
 	mux.Handle("/echo", handlers.EchoParam)
+	mux.Handle("/user/:userId", plumbus.ByMethod{
+		PATCH: handlers.EditUser,
+		GET:   handlers.GetUser,
+	})
+	mux.Handle("/docs", func() interface{} {
+		return mux.Documentation()
+	})
 
 	log.Println("listening on port 8000")
 	http.ListenAndServe(":8000", mux)
