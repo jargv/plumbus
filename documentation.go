@@ -2,7 +2,6 @@ package plumbus
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"reflect"
 
@@ -89,8 +88,6 @@ func handlerFunctionToEndpoint(handler interface{}) *Endpoint {
 		panic(fmt.Errorf("error generating documentation: %v", err))
 	}
 
-	log.Printf("info: %#v", info)
-
 	e := &Endpoint{}
 
 	if info.RequestBodyIndex != -1 {
@@ -106,7 +103,6 @@ func handlerFunctionToEndpoint(handler interface{}) *Endpoint {
 
 func body(typ reflect.Type) *Body {
 	ex := deepZero(typ).Interface()
-	log.Printf("ex: %#v", ex)
 	return &Body{
 		Example: ex,
 	}
@@ -138,7 +134,6 @@ func deepZero(typ reflect.Type) reflect.Value {
 	}
 
 	if typ.Kind() == reflect.Map {
-		log.Println("doing a map")
 		m := reflect.MakeMap(typ)
 		key := deepZero(typ.Key())
 		val := deepZero(typ.Elem())

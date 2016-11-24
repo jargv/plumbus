@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func Adaptor(handler interface{}, filepath, pkg, target string) error {
+func Adaptor(handler interface{}, filepath, pkg, typeName, funcName string) error {
 	typ := reflect.TypeOf(handler)
 	info, err := CollectInfo(typ)
 	if err != nil {
@@ -22,8 +22,8 @@ func Adaptor(handler interface{}, filepath, pkg, target string) error {
 	tmpl, err := template.New("adaptor").
 		Funcs(template.FuncMap{
 			"typename": func(arg interface{}) string {
-				str := fmt.Sprintf("%s", arg)
-				return strings.TrimPrefix(str, pkg+".")
+				typename := fmt.Sprintf("%s", arg)
+				return strings.Replace(typename, pkg+".", "", 1)
 			},
 		}).
 		Option("missingkey=error").
@@ -33,11 +33,19 @@ func Adaptor(handler interface{}, filepath, pkg, target string) error {
 		return err
 	}
 
+	adaptorName := funcName + "_plumbus_adaptor"
+	if typeName != "" {
+		adaptorName = typeName + "_" + adaptorName
+	}
+	adaptorName = strings.ToLower(adaptorName)
+
 	return tmpl.Execute(file, map[string]interface{}{
-		"info":       info,
-		"package":    pkg,
-		"target":     target,
-		"lastOutput": len(info.Outputs) - 1,
+		"info":        info,
+		"package":     pkg,
+		"func":        funcName,
+		"type":        typeName,
+		"adaptorName": adaptorName,
+		"lastOutput":  len(info.Outputs) - 1,
 	})
 }
 
@@ -61,19 +69,27 @@ var _ log.Logger
 var _ fmt.Formatter
 
 func init(){
-	typ := reflect.TypeOf({{.target}})
-	plumbus.RegisterAdaptor(typ, {{.target}}_adaptor)
+	{{if (len .type)}}
+		v := {{.type}}{}
+		f := v.{{.func}}
+	{{else}}
+	  f := {{.func}}
+	{{end}}
+	typ := reflect.TypeOf(f)
+	plumbus.RegisterAdaptor(typ, {{.adaptorName}})
 }
 
-func responseError(res http.ResponseWriter, err error) {
-	if err, ok := err.(plumbus.HTTPError); ok {
-		http.Error(res, err.Error(), err.ResponseCode())
-	} else {
-		http.Error(res, "", http.StatusInternalServerError)
+func {{.adaptorName}}(handler interface{}) http.HandlerFunc {
+	responseError := func (res http.ResponseWriter, err error) {
+		if err, ok := err.(plumbus.HTTPError); ok {
+			http.Error(res, err.Error(), err.ResponseCode())
+		} else {
+			http.Error(res, "", http.StatusInternalServerError)
+		}
 	}
-}
 
-func {{.target}}_adaptor(handler interface{}) http.HandlerFunc {
+	_ = responseError //may not be used below!
+
 	callback := handler.(func(
 		{{range $_, $arg := .info.Inputs}}
 			{{typename $arg}},
@@ -130,8 +146,7 @@ func {{.target}}_adaptor(handler interface{}) http.HandlerFunc {
 			{{if or (ne $i $lastOutput) (not $lastIsError)}}
 				{{if eq $i $info.ResponseBodyIndex}}
 					{
-						enc := json.NewEncoder(res)
-						err := enc.Encode(result{{$i}})
+						err := json.NewEncoder(res).Encode(result{{$i}})
 						if err != nil {
 							log.Printf("json encoding error: %s", err.Error())
 							http.Error(res, "", http.StatusInternalServerError)
