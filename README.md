@@ -70,7 +70,7 @@ methods to (flexible) handler functions.
 mux := plumbus.NewServeMux()
 mux.Handle("/user", &plumbus.ByMethod{
   GET: getUser,
-  POST: createUser
+  POST: createUser,
   //other methods supported, but all are optional
 })
 ```
@@ -86,7 +86,7 @@ parameters (available on req.URL.Query() before your
 handler is called)
 
 ##TODO
-- Make generate work with methods
 - Add a tutorial
 - Add plumbus.Params type
 - Document the automatic documentation feature
+- Configurable Logging

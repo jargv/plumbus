@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"reflect"
+	"runtime"
 
 	"github.com/jargv/plumbus/generate"
 )
@@ -73,8 +74,9 @@ func HandlerFunc(handler interface{}) http.Handler {
 
 	adaptor, exists := adaptors[typ]
 	if !exists {
-		log.Printf("WARNING: function of type `%v` using slow reflection adaptor", typ)
-		log.Printf("NOTE   : run go generate")
+		name := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
+		log.Printf("WARNING: using slow reflection adaptor for function: %s", name)
+		log.Printf("NOTE   : annotate with `//go:generate plumbus <function name>` and run `go generate`")
 		adaptor = makeDynamicAdaptor(typ)
 		if adaptors == nil {
 			adaptors = make(map[reflect.Type]adaptorFunc)
