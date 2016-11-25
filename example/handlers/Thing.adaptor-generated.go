@@ -12,67 +12,75 @@ import (
 	"log"
 )
 
-//packages "used" even if not used below
+// avoid unused import errors
 var _ json.Delim
 var _ log.Logger
 var _ fmt.Formatter
 
 func init(){
-	
-	  f := Thing
-	
-	typ := reflect.TypeOf(f)
-	plumbus.RegisterAdaptor(typ, thing_plumbus_adaptor)
-}
-
-func thing_plumbus_adaptor(handler interface{}) http.HandlerFunc {
-	responseError := func (res http.ResponseWriter, err error) {
-		if err, ok := err.(plumbus.HTTPError); ok {
-			http.Error(res, err.Error(), err.ResponseCode())
-		} else {
-			http.Error(res, "", http.StatusInternalServerError)
-		}
-	}
-
-	_ = responseError //may not be used below!
-
-	callback := handler.(func(
+	var dummy func(
+		
+			body,
 		
 	)(
 		
 			interface {},
 		
-	))
+	)
 
-	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request){
-		
-		
-
-		
-		
-			result0  := 
-		
-
-		callback(
+	typ := reflect.TypeOf(dummy)
+	plumbus.RegisterAdaptor(typ, func(handler interface{}) http.HandlerFunc {
+		callback := handler.(func(
 			
-		)
-
-		
-		
-
-		
+				body,
 			
+		)(
+			
+				interface {},
+			
+		))
+
+		return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request){
+			
+			
+				var arg0 body
 				
 					{
-						err := json.NewEncoder(res).Encode(result0)
-						if err != nil {
-							log.Printf("json encoding error: %s", err.Error())
-							http.Error(res, "", http.StatusInternalServerError)
+						if err := json.NewDecoder(req.Body).Decode(&arg0); err != nil {
+							msg := fmt.Sprintf("{\"error\": \"decoding json: %s\"}", err.Error())
+							http.Error(res, msg, http.StatusBadRequest)
 							return
 						}
 					}
 				
 			
-		
+
+			
+			
+				result0  := 
+			
+
+			callback(
+				
+				arg0,
+				
+			)
+
+			
+			
+
+			
+				
+					
+						{
+							if err := json.NewEncoder(res).Encode(result0); err != nil {
+								plumbus.HandleResponseError(res, req, err)
+								return
+							}
+						}
+					
+				
+			
+		})
 	})
 }

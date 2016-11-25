@@ -19,6 +19,7 @@ func main() {
 	mux.Handle("/incr", counter.Incr)
 	mux.Handle("/count", counter.Count)
 	mux.Handle("/thing", handlers.Thing)
+	mux.Handle("/error", handlers.Error)
 
 	log.Println("listening on port 8000")
 	http.ListenAndServe(":8000", mux)

@@ -22,7 +22,7 @@ func init(){
 		
 	)(
 		
-			map[string]interface {},
+			error,
 		
 	)
 
@@ -32,7 +32,7 @@ func init(){
 			
 		)(
 			
-				map[string]interface {},
+				error,
 			
 		))
 
@@ -51,17 +51,13 @@ func init(){
 
 			
 			
+				if result0 != nil {
+					plumbus.HandleResponseError(res, req, result0.(error))
+					return
+				}
+			
 
 			
-				
-					
-						{
-							if err := json.NewEncoder(res).Encode(result0); err != nil {
-								plumbus.HandleResponseError(res, req, err)
-								return
-							}
-						}
-					
 				
 			
 		})

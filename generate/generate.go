@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func Adaptor(handler interface{}, filepath, pkg, typeName, funcName string) error {
+func Adaptor(handler interface{}, filepath, pkg string) error {
 	typ := reflect.TypeOf(handler)
 	info, err := CollectInfo(typ)
 	if err != nil {
@@ -33,19 +33,10 @@ func Adaptor(handler interface{}, filepath, pkg, typeName, funcName string) erro
 		return err
 	}
 
-	adaptorName := funcName + "_plumbus_adaptor"
-	if typeName != "" {
-		adaptorName = typeName + "_" + adaptorName
-	}
-	adaptorName = strings.ToLower(adaptorName)
-
 	return tmpl.Execute(file, map[string]interface{}{
-		"info":        info,
-		"package":     pkg,
-		"func":        funcName,
-		"type":        typeName,
-		"adaptorName": adaptorName,
-		"lastOutput":  len(info.Outputs) - 1,
+		"info":       info,
+		"package":    pkg,
+		"lastOutput": len(info.Outputs) - 1,
 	})
 }
 
@@ -63,34 +54,13 @@ import (
 	"log"
 )
 
-//packages "used" even if not used below
+// avoid unused import errors
 var _ json.Delim
 var _ log.Logger
 var _ fmt.Formatter
 
 func init(){
-	{{if (len .type)}}
-		v := {{.type}}{}
-		f := v.{{.func}}
-	{{else}}
-	  f := {{.func}}
-	{{end}}
-	typ := reflect.TypeOf(f)
-	plumbus.RegisterAdaptor(typ, {{.adaptorName}})
-}
-
-func {{.adaptorName}}(handler interface{}) http.HandlerFunc {
-	responseError := func (res http.ResponseWriter, err error) {
-		if err, ok := err.(plumbus.HTTPError); ok {
-			http.Error(res, err.Error(), err.ResponseCode())
-		} else {
-			http.Error(res, "", http.StatusInternalServerError)
-		}
-	}
-
-	_ = responseError //may not be used below!
-
-	callback := handler.(func(
+	var dummy func(
 		{{range $_, $arg := .info.Inputs}}
 			{{typename $arg}},
 		{{end}}
@@ -98,69 +68,77 @@ func {{.adaptorName}}(handler interface{}) http.HandlerFunc {
 		{{range $_, $output := .info.Outputs}}
 			{{typename $output}},
 		{{end}}
-	))
+	)
 
-	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request){
-		{{$info := .info}}
-		{{range $i, $arg := $info.Inputs}}
-			var arg{{$i}} {{typename $arg}}
-			{{if eq $i $info.RequestBodyIndex}}
-				{
-					dec := json.NewDecoder(req.Body)
-
-					if err := dec.Decode(&arg{{$i}}); err != nil {
-						msg := fmt.Sprintf("error decoding json: %s", err.Error())
-						http.Error(res, msg, http.StatusBadRequest)
-						return
-					}
-				}
-			{{else}}
-				if err := arg{{$i}}.FromRequest(req); err != nil {
-					responseError(res, err)
-					return
-				}
+	typ := reflect.TypeOf(dummy)
+	plumbus.RegisterAdaptor(typ, func(handler interface{}) http.HandlerFunc {
+		callback := handler.(func(
+			{{range $_, $arg := .info.Inputs}}
+				{{typename $arg}},
 			{{end}}
-		{{end}}
-
-		{{$lastOutput := .lastOutput}}
-		{{range $i, $_ := .info.Outputs}}
-			result{{$i}} {{if eq $i $lastOutput}} := {{else}} , {{end}}
-		{{end}}
-
-		callback(
-			{{range $i, $_ := .info.Inputs}}
-			arg{{$i}},
+		)(
+			{{range $_, $output := .info.Outputs}}
+				{{typename $output}},
 			{{end}}
-		)
+		))
 
-		{{$lastIsError := .info.LastIsError}}
-		{{if $lastIsError}}
-			if result{{$lastOutput}} != nil {
-				log.Println("unhandled error:", result{{$lastOutput}})
-				responseError(res, result{{$lastOutput}}.(error))
-				return
-			}
-		{{end}}
-
-		{{range $i, $_ := .info.Outputs}}
-			{{if or (ne $i $lastOutput) (not $lastIsError)}}
-				{{if eq $i $info.ResponseBodyIndex}}
+		return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request){
+			{{$info := .info}}
+			{{range $i, $arg := $info.Inputs}}
+				var arg{{$i}} {{typename $arg}}
+				{{if eq $i $info.RequestBodyIndex}}
 					{
-						err := json.NewEncoder(res).Encode(result{{$i}})
-						if err != nil {
-							log.Printf("json encoding error: %s", err.Error())
-							http.Error(res, "", http.StatusInternalServerError)
+						if err := json.NewDecoder(req.Body).Decode(&arg{{$i}}); err != nil {
+							msg := fmt.Sprintf("{\"error\": \"decoding json: %s\"}", err.Error())
+							http.Error(res, msg, http.StatusBadRequest)
 							return
 						}
 					}
 				{{else}}
-					if err := result{{$i}}.ToResponse(res); err != nil {
-						responseError(res, err)
+					if err := arg{{$i}}.FromRequest(req); err != nil {
+						plumbus.HandleResponseError(res, req, err)
 						return
 					}
 				{{end}}
 			{{end}}
-		{{end}}
+
+			{{$lastOutput := .lastOutput}}
+			{{range $i, $_ := .info.Outputs}}
+				result{{$i}} {{if eq $i $lastOutput}} := {{else}} , {{end}}
+			{{end}}
+
+			callback(
+				{{range $i, $_ := .info.Inputs}}
+				arg{{$i}},
+				{{end}}
+			)
+
+			{{$lastIsError := .info.LastIsError}}
+			{{if $lastIsError}}
+				if result{{$lastOutput}} != nil {
+					plumbus.HandleResponseError(res, req, result{{$lastOutput}}.(error))
+					return
+				}
+			{{end}}
+
+			{{range $i, $_ := .info.Outputs}}
+				{{if or (ne $i $lastOutput) (not $lastIsError)}}
+					{{if eq $i $info.ResponseBodyIndex}}
+						{
+							if err := json.NewEncoder(res).Encode(result{{$i}}); err != nil {
+								plumbus.HandleResponseError(res, req, err)
+								return
+							}
+						}
+					{{else}}
+						if err := result{{$i}}.ToResponse(res); err != nil {
+							plumbus.HandleResponseError(res, req, err)
+							return
+						}
+					{{end}}
+				{{end}}
+			{{end}}
+		})
 	})
 }
 `

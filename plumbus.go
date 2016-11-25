@@ -98,22 +98,21 @@ func makeDynamicAdaptor(typ reflect.Type) adaptorFunc {
 	}
 }
 
-func printRequestError(req *http.Request, err error) {
-	log.Printf(
-		"error handling request: '%v'\n"+
-			"request: %s %s",
-		err,
-		req.Method,
-		req.URL.Path,
-	)
-}
-
-func ResponseError(res http.ResponseWriter, req *http.Request, err error) {
+func HandleResponseError(res http.ResponseWriter, req *http.Request, err error) {
 	if httperr, ok := err.(HTTPError); ok {
-		http.Error(res, httperr.Error(), httperr.ResponseCode())
+		res.WriteHeader(httperr.ResponseCode())
+		json.NewEncoder(res).Encode(map[string]interface{}{
+			"error": httperr.Error(),
+		})
 	} else {
-		printRequestError(req, err)
-		http.Error(res, "", http.StatusInternalServerError)
+		log.Printf(
+			"error handling request: %s %s: %v",
+			req.Method,
+			req.URL.Path,
+			err,
+		)
+		body := `{"error":"internal server error"}`
+		http.Error(res, body, http.StatusInternalServerError)
 	}
 }
 
@@ -126,7 +125,7 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 				dec := json.NewDecoder(req.Body)
 				err := dec.Decode(arg.Interface())
 				if err != nil {
-					msg := fmt.Sprintf("error decoding json: %s", err.Error())
+					msg := fmt.Sprintf(`{"error": "decoding json: %s"}`, err.Error())
 					http.Error(res, msg, http.StatusBadRequest)
 					return
 				}
@@ -134,13 +133,13 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 				arg.Elem().Set(reflect.New(typ.Elem()))
 				err := arg.Elem().Interface().(FromRequest).FromRequest(req)
 				if err != nil {
-					ResponseError(res, req, err)
+					HandleResponseError(res, req, err)
 					return
 				}
 			} else {
 				err := arg.Interface().(FromRequest).FromRequest(req)
 				if err != nil {
-					ResponseError(res, req, err)
+					HandleResponseError(res, req, err)
 					return
 				}
 			}
@@ -153,7 +152,7 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 			results = results[:len(results)-1]
 			if !last.IsNil() {
 				err := last.Interface().(error)
-				ResponseError(res, req, err)
+				HandleResponseError(res, req, err)
 				return
 			}
 		}
@@ -165,7 +164,7 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 
 			err := result.Interface().(ToResponse).ToResponse(res)
 			if err != nil {
-				ResponseError(res, req, err)
+				HandleResponseError(res, req, err)
 				return
 			}
 		}
@@ -174,8 +173,7 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 			enc := json.NewEncoder(res)
 			err := enc.Encode(results[info.ResponseBodyIndex].Interface())
 			if err != nil {
-				log.Printf("json encoding error: %s", err.Error())
-				http.Error(res, "", http.StatusInternalServerError)
+				HandleResponseError(res, req, err)
 				return
 			}
 		}

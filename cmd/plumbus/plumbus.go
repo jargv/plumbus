@@ -104,7 +104,7 @@ var templateString string = `
 		{{else}}
 			f := {{.Pkg}}.{{.Func}}
 		{{end}}
-		err := generate.Adaptor(f, "{{.Path}}", "{{.Pkg}}", "{{.Type}}", "{{.Func}}")
+		err := generate.Adaptor(f, "{{.Path}}", "{{.Pkg}}")
 		if err != nil {
 			log.Printf("couldn't generate: %s", err)
 			os.Exit(1)
