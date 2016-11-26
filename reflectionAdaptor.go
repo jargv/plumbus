@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"strconv"
 
 	"github.com/jargv/plumbus/generate"
 )
@@ -14,6 +15,10 @@ import (
 func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.HandlerFunc {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		var queryParams url.Values
+		if info.UsesQueryParams {
+			queryParams = req.URL.Query()
+		}
+
 		args := make([]reflect.Value, len(info.Inputs))
 		for i, converter := range info.Inputs {
 			val := reflect.New(converter.Type)
@@ -25,24 +30,27 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 					return
 				}
 			case generate.ConvertInterface:
+				interfaceVal := val
 				if converter.IsPointer {
 					val.Elem().Set(reflect.New(converter.Type.Elem()))
-					val = val.Elem()
+					interfaceVal = val.Elem()
 				}
-				err := val.Interface().(FromRequest).FromRequest(req)
+				err := interfaceVal.Interface().(FromRequest).FromRequest(req)
 				if err != nil {
 					HandleResponseError(res, req, err)
 					return
 				}
-				if converter.IsPointer {
-					val = val.Addr()
-				}
-			case generate.ConvertStringQueryParam:
-				if queryParams == nil {
-					queryParams = req.URL.Query()
-				}
+			case generate.ConvertStringQueryParam,
+				generate.ConvertOptionalStringQueryParam,
+				generate.ConvertIntQueryParam,
+				generate.ConvertOptionalIntQueryParam:
 
-				if _, sent := queryParams[converter.Name]; !sent {
+				_, sent := queryParams[converter.Name]
+
+				if !sent {
+					if t.IsOptional() {
+						break
+					}
 					HandleResponseError(res, req, Errorf(
 						http.StatusBadRequest,
 						"missing required query parameter '%s'",
@@ -51,16 +59,29 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 					return
 				}
 
-				val.Elem().SetString(queryParams.Get(converter.Name))
-			case generate.ConvertOptionalStringQueryParam:
-				if queryParams == nil {
-					queryParams = req.URL.Query()
+				paramString := queryParams.Get(converter.Name)
+
+				setVal := val
+				if t.IsOptional() {
+					val.Elem().Set(reflect.New(converter.Type.Elem()))
+					setVal = val.Elem()
 				}
 
-				if _, sent := queryParams[converter.Name]; sent {
-					val.Elem().Set(reflect.New(converter.Type.Elem()))
-					val.Elem().Elem().SetString(queryParams.Get(converter.Name))
+				if !t.IsInt() {
+					setVal.Elem().SetString(paramString)
+				} else {
+					paramInt, err := strconv.Atoi(paramString)
+					if err != nil {
+						HandleResponseError(res, req, Errorf(
+							http.StatusBadRequest,
+							"query param '%s' expected to be integer value",
+							converter.Name,
+						))
+						return
+					}
+					setVal.Elem().SetInt(int64(paramInt))
 				}
+
 			default:
 				log.Fatalf("unexpected Convert Type: %s", t)
 			}

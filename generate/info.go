@@ -9,15 +9,39 @@ import (
 
 type ConversionType int
 
+func (ct ConversionType) IsOptional() bool {
+	return ct == ConvertOptionalStringQueryParam ||
+		ct == ConvertOptionalIntQueryParam
+}
+
+func (ct ConversionType) IsInt() bool {
+	return ct == ConvertIntQueryParam ||
+		ct == ConvertOptionalIntQueryParam
+}
+
+func (ct ConversionType) isQueryParam() bool {
+	return startQueryParams < ct && ct < endQueryParams
+}
+
+func (ct *ConversionType) setOptional() {
+	if *ct == ConvertStringQueryParam {
+		*ct = ConvertOptionalStringQueryParam
+	} else if *ct == ConvertIntQueryParam {
+		*ct = ConvertOptionalIntQueryParam
+	}
+}
+
 const (
 	ConvertBody ConversionType = iota
 	ConvertError
+	ConvertInterface
 
-	//optional values must be +1 of the non-optional version
+	startQueryParams
 	ConvertStringQueryParam
 	ConvertOptionalStringQueryParam
-
-	ConvertInterface
+	ConvertIntQueryParam
+	ConvertOptionalIntQueryParam
+	endQueryParams
 )
 
 type Converter struct {
@@ -30,6 +54,7 @@ type Converter struct {
 type Info struct {
 	Inputs            []*Converter
 	Outputs           []*Converter
+	UsesQueryParams   bool
 	ResponseBodyIndex int
 	LastIsError       bool
 }
@@ -47,7 +72,11 @@ func CollectInfo(typ reflect.Type) (*Info, error) {
 	}
 
 	for i := 0; i < typ.NumIn(); i++ {
-		info.Inputs = append(info.Inputs, inputConverter(typ.In(i)))
+		input := inputConverter(typ.In(i))
+		info.Inputs = append(info.Inputs, input)
+		if input.ConversionType.isQueryParam() {
+			info.UsesQueryParams = true
+		}
 	}
 
 	for i := 0; i < typ.NumOut(); i++ {
@@ -126,13 +155,13 @@ func typeIsQueryParam(typ reflect.Type) *Converter {
 	case reflect.String:
 		conv = ConvertStringQueryParam
 	case reflect.Int:
-		conv = ConvertStringQueryParam
+		conv = ConvertIntQueryParam
 	default:
 		log.Fatalf("query parameter types must be string or int kind")
 	}
 
 	if isOptional {
-		conv++
+		conv.setOptional()
 	}
 
 	return &Converter{
