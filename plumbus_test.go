@@ -186,15 +186,28 @@ func TestPathParams(t *testing.T) {
 
 func TestRequiredRequestParam(t *testing.T) {
 	type foodQueryParam string
+	type amountQueryParam int
 	var result string
-	server := httptest.NewServer(HandlerFunc(func(food foodQueryParam) {
+	var amount int
+	server := httptest.NewServer(HandlerFunc(func(food foodQueryParam, a amountQueryParam) {
+		amount = int(a)
 		result = string(food)
 	}))
 
 	//test that it's required (we should get a StatusBadRequest)
 	resp, err := http.Get(server.URL)
 	if err != nil {
-		t.Fatalf("makeing request: %v\n", err)
+		t.Fatalf("making request: %v\n", err)
+	}
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf(`resp.StatusCode != htp.StatusBadRequest, resp.StatusCode == "%v"`, resp.StatusCode)
+	}
+
+	//test that it's required (we should get a StatusBadRequest)
+	resp, err = http.Get(server.URL + "?food=nachos")
+	if err != nil {
+		t.Fatalf("making request: %v\n", err)
 	}
 
 	if resp.StatusCode != http.StatusBadRequest {
@@ -202,7 +215,7 @@ func TestRequiredRequestParam(t *testing.T) {
 	}
 
 	//test that it's converted
-	_, err = http.Get(server.URL + "?food=nachos")
+	_, err = http.Get(server.URL + "?food=nachos&amount=10")
 	if err != nil {
 		t.Fatalf("makeing request: %v\n", err)
 	}
@@ -210,14 +223,23 @@ func TestRequiredRequestParam(t *testing.T) {
 	if result != "nachos" {
 		t.Fatalf(`result != "nachos", result == "%v"`, result)
 	}
+
+	if amount != 10 {
+		t.Fatalf(`amount != 10, amount == "%v"`, amount)
+	}
 }
 
 func TestOptionalRequestParam(t *testing.T) {
 	type foodQueryParam string
+	type amountQueryParam int
 	result := "not set"
-	server := httptest.NewServer(HandlerFunc(func(food *foodQueryParam) {
+	amount := 0
+	server := httptest.NewServer(HandlerFunc(func(a *amountQueryParam, food *foodQueryParam) {
 		if food != nil {
 			result = string(*food)
+		}
+		if a != nil {
+			amount = int(*a)
 		}
 	}))
 
@@ -235,14 +257,36 @@ func TestOptionalRequestParam(t *testing.T) {
 		t.Fatalf(`result != "not set", result == "%v"`, result)
 	}
 
+	//test that it's not required (on the second, int param)
+	resp, err = http.Get(server.URL + "?food=nachos")
+	if err != nil {
+		t.Fatalf("makeing request: %v\n", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf(`resp.StatusCode != http.StatusOK, resp.StatusCode == "%v"`, resp.StatusCode)
+	}
+
+	if result != "nachos" {
+		t.Fatalf(`result != "not set", result == "%v"`, result)
+	}
+
+	if amount != 0 {
+		t.Fatalf(`amount != 0, amount == "%v"`, amount)
+	}
+
 	//test that it's passed to the handler
-	_, err = http.Get(server.URL + "?food=nachos")
+	_, err = http.Get(server.URL + "?food=nachos&amount=10")
 	if err != nil {
 		t.Fatalf("makeing request: %v\n", err)
 	}
 
 	if result != "nachos" {
 		t.Fatalf(`result != "nachos", result == "%v"`, result)
+	}
+
+	if amount != 10 {
+		t.Fatalf(`amount != 10, amount == "%v"`, amount)
 	}
 }
 

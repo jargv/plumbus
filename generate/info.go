@@ -14,12 +14,12 @@ func (ct ConversionType) IsOptional() bool {
 		ct == ConvertOptionalIntQueryParam
 }
 
-func (ct ConversionType) IsInt() bool {
-	return ct == ConvertIntQueryParam ||
-		ct == ConvertOptionalIntQueryParam
+func (ct ConversionType) IsString() bool {
+	return ct == ConvertStringQueryParam ||
+		ct == ConvertOptionalStringQueryParam
 }
 
-func (ct ConversionType) isQueryParam() bool {
+func (ct ConversionType) IsQueryParam() bool {
 	return startQueryParams < ct && ct < endQueryParams
 }
 
@@ -74,7 +74,7 @@ func CollectInfo(typ reflect.Type) (*Info, error) {
 	for i := 0; i < typ.NumIn(); i++ {
 		input := inputConverter(typ.In(i))
 		info.Inputs = append(info.Inputs, input)
-		if input.ConversionType.isQueryParam() {
+		if input.ConversionType.IsQueryParam() {
 			info.UsesQueryParams = true
 		}
 	}
