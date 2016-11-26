@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"net/http"
-	"strconv"
 	"sync"
 
 	"github.com/jargv/plumbus"
@@ -28,26 +26,11 @@ func (c Counter) Count() map[string]interface{} {
 	}
 }
 
-type body struct {
-	Name   string
-	Age    int
-	Nachos int
-}
+type messageQueryParam string
 
-type index int
-
-func (i *index) FromRequest(req *http.Request) error {
-	str := req.URL.Query().Get("index")
-	val, err := strconv.Atoi(str)
-	*i = index(val)
-	return err
-}
-
-//go:generate plumbus Thing
-func Thing(b body) interface{} {
-	return map[string]interface{}{
-		"name": "Jonboy",
-		"age":  32,
+func EchoParam(message messageQueryParam) map[string]string {
+	return map[string]string{
+		"message": string(message),
 	}
 }
 

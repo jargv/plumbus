@@ -1,67 +1,97 @@
 package generate
 
 import (
-	"errors"
+	"fmt"
 	"reflect"
 )
 
+type ConversionType int
+
+const (
+	ConvertBody ConversionType = iota
+	ConvertError
+	ConvertQueryParam
+	ConvertInterface
+)
+
+type Converter struct {
+	ConversionType ConversionType
+	Type           reflect.Type
+	IsPointer      bool
+}
+
 type Info struct {
-	Inputs            []reflect.Type
-	Outputs           []reflect.Type
-	IsPointer         []bool
-	RequestBodyIndex  int
+	Inputs            []*Converter
+	Outputs           []*Converter
 	ResponseBodyIndex int
-	RequestIndex      int
-	ResponseIndex     int
 	LastIsError       bool
 }
 
 func CollectInfo(typ reflect.Type) (*Info, error) {
-	info := &Info{}
-
-	nArgs := typ.NumIn()
-	info.Inputs = make([]reflect.Type, nArgs)
-	info.IsPointer = make([]bool, nArgs)
-	info.RequestBodyIndex = -1
-	for i := 0; i < nArgs; i++ {
-		argType := typ.In(i)
-		info.Inputs[i] = argType
-		interfaceType := reflect.TypeOf((*FromRequest)(nil)).Elem()
-
-		IsPointer := argType.Kind() == reflect.Ptr
-		info.IsPointer[i] = IsPointer
-		implementsInterface := argType.Implements(interfaceType)
-
-		if !IsPointer && !implementsInterface {
-			//it's possible an automatic reference will do the trick (like go does)
-			implementsInterface = reflect.PtrTo(argType).Implements(interfaceType)
-		}
-
-		if !implementsInterface {
-			if info.RequestBodyIndex != -1 {
-				return nil, errors.New("plumbus.Handler: multiple args trying to use request body")
-			}
-			info.RequestBodyIndex = i
-		}
+	if typ.Kind() != reflect.Func {
+		return nil, fmt.Errorf(
+			"internal plumbus error: expected value of kind 'function', got %s",
+			typ.Kind(),
+		)
 	}
 
-	nResults := typ.NumOut()
-	info.Outputs = make([]reflect.Type, nResults)
-	info.LastIsError = false
-	info.ResponseBodyIndex = -1
-	resultTypes := []reflect.Type{}
-	for i := 0; i < nResults; i++ {
-		out := typ.Out(i)
-		info.Outputs[i] = out
-		resultTypes = append(resultTypes, out)
-		info.LastIsError = out.Implements(reflect.TypeOf((*error)(nil)).Elem())
-		if !out.Implements(reflect.TypeOf((*ToResponse)(nil)).Elem()) && !info.LastIsError {
-			if info.ResponseBodyIndex != -1 {
-				return nil, errors.New("plumbus.Handler: multiple results trying to use response body")
-			}
+	info := &Info{
+		ResponseBodyIndex: -1,
+	}
+
+	for i := 0; i < typ.NumIn(); i++ {
+		info.Inputs = append(info.Inputs, inputConverter(typ.In(i)))
+	}
+
+	for i := 0; i < typ.NumOut(); i++ {
+		output := outputConverter(typ.Out(i))
+		info.Outputs = append(info.Outputs, output)
+		if i == typ.NumOut()-1 {
+			info.LastIsError = output.ConversionType == ConvertError
+		}
+		if output.ConversionType == ConvertBody {
+			//todo: check for multiples here
 			info.ResponseBodyIndex = i
 		}
 	}
 
 	return info, nil
+}
+
+func outputConverter(typ reflect.Type) *Converter {
+	conv := &Converter{
+		Type: typ,
+	}
+
+	interfaceType := reflect.TypeOf((*ToResponse)(nil)).Elem()
+	errorType := reflect.TypeOf((*error)(nil)).Elem()
+
+	switch true {
+	case typ.Implements(interfaceType) || reflect.PtrTo(typ).Implements(interfaceType):
+		conv.ConversionType = ConvertInterface
+	case typ.Implements(errorType):
+		conv.ConversionType = ConvertError
+	default:
+		conv.ConversionType = ConvertBody
+	}
+
+	return conv
+}
+
+func inputConverter(typ reflect.Type) *Converter {
+	conv := &Converter{
+		Type:      typ,
+		IsPointer: typ.Kind() == reflect.Ptr,
+	}
+
+	interfaceType := reflect.TypeOf((*FromRequest)(nil)).Elem()
+
+	switch true {
+	case typ.Implements(interfaceType) || reflect.PtrTo(typ).Implements(interfaceType):
+		conv.ConversionType = ConvertInterface
+	default:
+		conv.ConversionType = ConvertBody
+	}
+
+	return conv
 }

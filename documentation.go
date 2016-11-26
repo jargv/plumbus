@@ -2,6 +2,7 @@ package plumbus
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"reflect"
 
@@ -90,13 +91,15 @@ func handlerFunctionToEndpoint(handler interface{}) *Endpoint {
 
 	e := &Endpoint{}
 
-	if info.RequestBodyIndex != -1 {
-		e.RequestBody = body(info.Inputs[info.RequestBodyIndex])
-	}
+	log.Printf("info: %#v", info)
 
-	if info.ResponseBodyIndex != -1 {
-		e.ResponseBody = body(info.Outputs[info.ResponseBodyIndex])
-	}
+	// if info.RequestBodyIndex != -1 {
+	// 	e.RequestBody = body(info.Inputs[info.RequestBodyIndex])
+	// }
+
+	// if info.ResponseBodyIndex != -1 {
+	// 	e.ResponseBody = body(info.Outputs[info.ResponseBodyIndex])
+	// }
 
 	return e
 }

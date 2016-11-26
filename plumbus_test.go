@@ -3,7 +3,6 @@ package plumbus
 import (
 	"bytes"
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -73,17 +72,14 @@ func TestRequestBody(t *testing.T) {
 	defer server.Close()
 
 	bytes := bytes.Buffer{}
-	enc := json.NewEncoder(&bytes)
-	enc.Encode(&Body{
+	json.NewEncoder(&bytes).Encode(&Body{
 		Message: "full circle!",
 	})
 
-	req, err := http.NewRequest("POST", server.URL, &bytes)
+	_, err := http.Post(server.URL, "", &bytes)
 	if err != nil {
 		t.Errorf("couldn't make request: %#v\n", err)
 	}
-	client := http.Client{}
-	client.Do(req)
 
 	if message != "full circle!" {
 		t.Errorf(`message != "full circle", message == %q`, message)
@@ -98,10 +94,12 @@ func (p *Param) FromRequest(req *http.Request) error {
 }
 
 func TestRequestParam(t *testing.T) {
-	var param string
+	var param1 string
+	var param2 string
 
-	handler := HandlerFunc(func(p Param) {
-		param = string(p)
+	handler := HandlerFunc(func(p1 Param, p2 *Param) {
+		param1 = string(p1)
+		param2 = string(*p2)
 	})
 
 	server := httptest.NewServer(handler)
@@ -109,8 +107,12 @@ func TestRequestParam(t *testing.T) {
 
 	http.Get(server.URL + `?param=awesome`)
 
-	if param != "awesome" {
-		t.Errorf(`param != "awesome", param == %q`, param)
+	if param1 != "awesome" {
+		t.Errorf(`param1 != "awesome", param1 == %q`, param1)
+	}
+
+	if param2 != "awesome" {
+		t.Errorf(`param2 != "awesome", param2 == %q`, param2)
 	}
 }
 
@@ -182,64 +184,64 @@ func TestPathParams(t *testing.T) {
 	}
 }
 
-type UserId struct {
-}
+// type UserId struct {
+// }
 
-func (ui *UserId) FromRequest(req *http.Request) error {
-	return nil
-}
+// func (ui *UserId) FromRequest(req *http.Request) error {
+// 	return nil
+// }
 
-type User struct {
-	Name string `json:"name"`
-	Age  int    `json:"age"`
-}
+// type User struct {
+// 	Name string `json:"name"`
+// 	Age  int    `json:"age"`
+// }
 
-type UserRepo struct {
-}
+// type UserRepo struct {
+// }
 
-func (ur *UserRepo) FindById(id UserId) (*User, error) {
-	return nil, nil
-}
+// func (ur *UserRepo) FindById(id UserId) (*User, error) {
+// 	return nil, nil
+// }
 
-func (ur *UserRepo) Edit(id UserId, user *User) error {
-	return nil
-}
+// func (ur *UserRepo) Edit(id UserId, user *User) error {
+// 	return nil
+// }
 
-func TestDocumentation(t *testing.T) {
-	mux := NewServeMux()
-	type user struct {
-		Name string
-		Age  int
-	}
+// func TestDocumentation(t *testing.T) {
+// 	mux := NewServeMux()
+// 	type user struct {
+// 		Name string
+// 		Age  int
+// 	}
 
-	type result struct {
-		Role   string
-		Id     int
-		User   *user
-		Thing1 *int
-		Thing2 []int
-		Thing3 []*int
-		Thing4 []**int
-		Thing5 map[string]*user
-	}
+// 	type result struct {
+// 		Role   string
+// 		Id     int
+// 		User   *user
+// 		Thing1 *int
+// 		Thing2 []int
+// 		Thing3 []*int
+// 		Thing4 []**int
+// 		Thing5 map[string]*user
+// 	}
 
-	users := UserRepo{}
+// 	users := UserRepo{}
 
-	mux.Handle("/users/:userId/details", func(u user) *result {
-		return nil
-	})
+// 	mux.Handle("/users/:userId/details", func(u user) *result {
+// 		return nil
+// 	})
 
-	mux.Handle("/users/:userId", ByMethod{
-		GET: users.FindById,
-		PUT: users.Edit,
-	})
+// 	mux.Handle("/users/:userId", ByMethod{
+// 		GET: users.FindById,
+// 		PUT: users.Edit,
+// 	})
 
-	mux.Handle("/standerd/handler", func(http.ResponseWriter, *http.Request) {})
+// 	mux.Handle("/standerd/handler", func(http.ResponseWriter, *http.Request) {})
 
-	mux.Handle("/any/body", func(interface{}) {})
+// 	mux.Handle("/any/body", func(interface{}) {})
 
-	docs := mux.Documentation()
+// 	docs := mux.Documentation()
 
-	bytes, _ := json.MarshalIndent(docs, "", "  ")
-	log.Printf("string(bytes):\n%s", string(bytes))
-}
+// 	bytes, _ := json.MarshalIndent(docs, "", "  ")
+// 	log.Printf("string(bytes):\n%s", string(bytes))
+// }
