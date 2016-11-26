@@ -9,26 +9,9 @@ import (
 
 type ConversionType int
 
-func (ct ConversionType) IsOptional() bool {
-	return ct == ConvertOptionalStringQueryParam ||
-		ct == ConvertOptionalIntQueryParam
-}
-
-func (ct ConversionType) IsString() bool {
+func (ct ConversionType) isQueryParam() bool {
 	return ct == ConvertStringQueryParam ||
-		ct == ConvertOptionalStringQueryParam
-}
-
-func (ct ConversionType) IsQueryParam() bool {
-	return startQueryParams < ct && ct < endQueryParams
-}
-
-func (ct *ConversionType) setOptional() {
-	if *ct == ConvertStringQueryParam {
-		*ct = ConvertOptionalStringQueryParam
-	} else if *ct == ConvertIntQueryParam {
-		*ct = ConvertOptionalIntQueryParam
-	}
+		ct == ConvertIntQueryParam
 }
 
 const (
@@ -36,12 +19,8 @@ const (
 	ConvertError
 	ConvertInterface
 
-	startQueryParams
 	ConvertStringQueryParam
-	ConvertOptionalStringQueryParam
 	ConvertIntQueryParam
-	ConvertOptionalIntQueryParam
-	endQueryParams
 )
 
 type Converter struct {
@@ -74,7 +53,7 @@ func CollectInfo(typ reflect.Type) (*Info, error) {
 	for i := 0; i < typ.NumIn(); i++ {
 		input := inputConverter(typ.In(i))
 		info.Inputs = append(info.Inputs, input)
-		if input.ConversionType.IsQueryParam() {
+		if input.ConversionType.isQueryParam() {
 			info.UsesQueryParams = true
 		}
 	}
@@ -138,10 +117,8 @@ func typeIsQueryParam(typ reflect.Type) *Converter {
 	const suffix = "QueryParam"
 
 	paramType := typ
-	isOptional := false
 	typeName := typ.Name()
 	if typ.Kind() == reflect.Ptr {
-		isOptional = true
 		paramType = typ.Elem()
 		typeName = paramType.Name()
 	}
@@ -160,13 +137,10 @@ func typeIsQueryParam(typ reflect.Type) *Converter {
 		log.Fatalf("query parameter types must be string or int kind")
 	}
 
-	if isOptional {
-		conv.setOptional()
-	}
-
 	return &Converter{
 		Name:           strings.TrimSuffix(typeName, suffix),
 		ConversionType: conv,
 		Type:           typ,
+		IsPointer:      typ.Kind() == reflect.Ptr,
 	}
 }

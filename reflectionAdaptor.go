@@ -22,15 +22,14 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 		args := make([]reflect.Value, len(info.Inputs))
 		for i, converter := range info.Inputs {
 			val := reflect.New(converter.Type)
-			t := converter.ConversionType
-			switch true {
-			case t == generate.ConvertBody:
+			switch t := converter.ConversionType; t {
+			case generate.ConvertBody:
 				if err := json.NewDecoder(req.Body).Decode(val.Interface()); err != nil {
 					msg := fmt.Sprintf(`{"error": "decoding json: %s"}`, err.Error())
 					http.Error(res, msg, http.StatusBadRequest)
 					return
 				}
-			case t == generate.ConvertInterface:
+			case generate.ConvertInterface:
 				interfaceVal := val
 				if converter.IsPointer {
 					val.Elem().Set(reflect.New(converter.Type.Elem()))
@@ -41,46 +40,12 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 					HandleResponseError(res, req, err)
 					return
 				}
-			case t.IsQueryParam():
-				_, sent := queryParams[converter.Name]
-
-				if !sent && !t.IsOptional() {
-					HandleResponseError(res, req, Errorf(
-						http.StatusBadRequest,
-						"missing required query parameter '%s'",
-						converter.Name,
-					))
-					return
-				}
-
-				if !sent && t.IsOptional() {
-					break
-				}
-
-				paramString := queryParams.Get(converter.Name)
-
-				setVal := val
-				if t.IsOptional() {
-					val.Elem().Set(reflect.New(converter.Type.Elem()))
-					setVal = val.Elem()
-				}
-
-				if t.IsString() {
-					setVal.Elem().SetString(paramString)
-					break
-				}
-
-				paramInt, err := strconv.Atoi(paramString)
+			case generate.ConvertStringQueryParam, generate.ConvertIntQueryParam:
+				err := getQueryParam(converter, val, queryParams)
 				if err != nil {
-					HandleResponseError(res, req, Errorf(
-						http.StatusBadRequest,
-						"query param '%s' expected to be integer value",
-						converter.Name,
-					))
+					HandleResponseError(res, req, err)
 					return
 				}
-				setVal.Elem().SetInt(int64(paramInt))
-
 			default:
 				log.Fatalf("unexpected Convert Type: %s", t)
 			}
@@ -122,4 +87,46 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 			}
 		}
 	})
+}
+
+func getQueryParam(converter *generate.Converter, val reflect.Value, queryParams url.Values) error {
+	t := converter.ConversionType
+	_, sent := queryParams[converter.Name]
+
+	if !sent && !converter.IsPointer {
+		return Errorf(
+			http.StatusBadRequest,
+			"missing required query parameter '%s'",
+			converter.Name,
+		)
+	}
+
+	if !sent && converter.IsPointer {
+		return nil
+	}
+
+	paramString := queryParams.Get(converter.Name)
+
+	setVal := val
+	if converter.IsPointer {
+		val.Elem().Set(reflect.New(converter.Type.Elem()))
+		setVal = val.Elem()
+	}
+
+	if t == generate.ConvertStringQueryParam {
+		setVal.Elem().SetString(paramString)
+		return nil
+	}
+
+	paramInt, err := strconv.Atoi(paramString)
+	if err != nil {
+		return Errorf(
+			http.StatusBadRequest,
+			"query param '%s' expected to be integer value",
+			converter.Name,
+		)
+	}
+	setVal.Elem().SetInt(int64(paramInt))
+
+	return nil
 }
