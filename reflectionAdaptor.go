@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"reflect"
 
 	"github.com/jargv/plumbus/generate"
@@ -12,10 +13,11 @@ import (
 
 func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.HandlerFunc {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		var queryParams url.Values
 		args := make([]reflect.Value, len(info.Inputs))
 		for i, converter := range info.Inputs {
 			val := reflect.New(converter.Type)
-			switch converter.ConversionType {
+			switch t := converter.ConversionType; t {
 			case generate.ConvertBody:
 				if err := json.NewDecoder(req.Body).Decode(val.Interface()); err != nil {
 					msg := fmt.Sprintf(`{"error": "decoding json: %s"}`, err.Error())
@@ -35,10 +37,35 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 				if converter.IsPointer {
 					val = val.Addr()
 				}
+			case generate.ConvertStringQueryParam:
+				if queryParams == nil {
+					queryParams = req.URL.Query()
+				}
+
+				if _, sent := queryParams[converter.Name]; !sent {
+					HandleResponseError(res, req, Errorf(
+						http.StatusBadRequest,
+						"missing required query parameter '%s'",
+						converter.Name,
+					))
+					return
+				}
+
+				val.Elem().SetString(queryParams.Get(converter.Name))
+			case generate.ConvertOptionalStringQueryParam:
+				if queryParams == nil {
+					queryParams = req.URL.Query()
+				}
+
+				if _, sent := queryParams[converter.Name]; sent {
+					val.Elem().Set(reflect.New(converter.Type.Elem()))
+					val.Elem().Elem().SetString(queryParams.Get(converter.Name))
+				}
+			default:
+				log.Fatalf("unexpected Convert Type: %s", t)
 			}
 			args[i] = val.Elem()
 		}
-		log.Printf("args: %#v", args)
 		results := handler.Call(args)
 
 		if info.LastIsError {
@@ -52,7 +79,7 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 		}
 
 		for i, converter := range info.Outputs {
-			switch converter.ConversionType {
+			switch t := converter.ConversionType; t {
 			case generate.ConvertBody:
 				//do nothing, the response body has to be sent last
 			case generate.ConvertInterface:
@@ -61,6 +88,8 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 					HandleResponseError(res, req, err)
 					return
 				}
+			default:
+				log.Fatalf("unexpected Convert Type: %s", t)
 			}
 		}
 

@@ -184,6 +184,68 @@ func TestPathParams(t *testing.T) {
 	}
 }
 
+func TestRequiredRequestParam(t *testing.T) {
+	type foodQueryParam string
+	var result string
+	server := httptest.NewServer(HandlerFunc(func(food foodQueryParam) {
+		result = string(food)
+	}))
+
+	//test that it's required (we should get a StatusBadRequest)
+	resp, err := http.Get(server.URL)
+	if err != nil {
+		t.Fatalf("makeing request: %v\n", err)
+	}
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf(`resp.StatusCode != htp.StatusBadRequest, resp.StatusCode == "%v"`, resp.StatusCode)
+	}
+
+	//test that it's converted
+	_, err = http.Get(server.URL + "?food=nachos")
+	if err != nil {
+		t.Fatalf("makeing request: %v\n", err)
+	}
+
+	if result != "nachos" {
+		t.Fatalf(`result != "nachos", result == "%v"`, result)
+	}
+}
+
+func TestOptionalRequestParam(t *testing.T) {
+	type foodQueryParam string
+	result := "not set"
+	server := httptest.NewServer(HandlerFunc(func(food *foodQueryParam) {
+		if food != nil {
+			result = string(*food)
+		}
+	}))
+
+	//test that it's not required
+	resp, err := http.Get(server.URL)
+	if err != nil {
+		t.Fatalf("makeing request: %v\n", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf(`resp.StatusCode != http.StatusOK, resp.StatusCode == "%v"`, resp.StatusCode)
+	}
+
+	if result != "not set" {
+		t.Fatalf(`result != "not set", result == "%v"`, result)
+	}
+
+	//test that it's passed to the handler
+	_, err = http.Get(server.URL + "?food=nachos")
+	if err != nil {
+		t.Fatalf("makeing request: %v\n", err)
+	}
+
+	if result != "nachos" {
+		t.Fatalf(`result != "nachos", result == "%v"`, result)
+	}
+}
+
 // type UserId struct {
 // }
 

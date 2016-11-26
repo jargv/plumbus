@@ -2,7 +2,9 @@ package generate
 
 import (
 	"fmt"
+	"log"
 	"reflect"
+	"strings"
 )
 
 type ConversionType int
@@ -10,12 +12,17 @@ type ConversionType int
 const (
 	ConvertBody ConversionType = iota
 	ConvertError
-	ConvertQueryParam
+
+	//optional values must be +1 of the non-optional version
+	ConvertStringQueryParam
+	ConvertOptionalStringQueryParam
+
 	ConvertInterface
 )
 
 type Converter struct {
 	ConversionType ConversionType
+	Name           string
 	Type           reflect.Type
 	IsPointer      bool
 }
@@ -79,19 +86,58 @@ func outputConverter(typ reflect.Type) *Converter {
 }
 
 func inputConverter(typ reflect.Type) *Converter {
-	conv := &Converter{
-		Type:      typ,
-		IsPointer: typ.Kind() == reflect.Ptr,
+	if queryParamConverter := typeIsQueryParam(typ); queryParamConverter != nil {
+		return queryParamConverter
 	}
 
 	interfaceType := reflect.TypeOf((*FromRequest)(nil)).Elem()
-
-	switch true {
-	case typ.Implements(interfaceType) || reflect.PtrTo(typ).Implements(interfaceType):
-		conv.ConversionType = ConvertInterface
-	default:
-		conv.ConversionType = ConvertBody
+	if typ.Implements(interfaceType) || reflect.PtrTo(typ).Implements(interfaceType) {
+		return &Converter{
+			Type:           typ,
+			IsPointer:      typ.Kind() == reflect.Ptr,
+			ConversionType: ConvertInterface,
+		}
 	}
 
-	return conv
+	return &Converter{
+		Type:           typ,
+		ConversionType: ConvertBody,
+	}
+}
+
+func typeIsQueryParam(typ reflect.Type) *Converter {
+	const suffix = "QueryParam"
+
+	paramType := typ
+	isOptional := false
+	typeName := typ.Name()
+	if typ.Kind() == reflect.Ptr {
+		isOptional = true
+		paramType = typ.Elem()
+		typeName = paramType.Name()
+	}
+
+	if !strings.HasSuffix(typeName, suffix) {
+		return nil
+	}
+
+	var conv ConversionType
+	switch paramType.Kind() {
+	case reflect.String:
+		conv = ConvertStringQueryParam
+	case reflect.Int:
+		conv = ConvertStringQueryParam
+	default:
+		log.Fatalf("query parameter types must be string or int kind")
+	}
+
+	if isOptional {
+		conv++
+	}
+
+	return &Converter{
+		Name:           strings.TrimSuffix(typeName, suffix),
+		ConversionType: conv,
+		Type:           typ,
+	}
 }
