@@ -25,6 +25,25 @@ func Adaptor(handler interface{}, filepath, pkg string) error {
 				typename := fmt.Sprintf("%s", arg)
 				return strings.Replace(typename, pkg+".", "", 1)
 			},
+			"typenameElem": func(arg interface{}) string {
+				typename := fmt.Sprintf("%s", arg)
+				return strings.Replace(typename, "*"+pkg+".", "", 1)
+			},
+			"ConvertBody": func() ConversionType {
+				return ConvertBody
+			},
+			"ConvertError": func() ConversionType {
+				return ConvertError
+			},
+			"ConvertInterface": func() ConversionType {
+				return ConvertInterface
+			},
+			"ConvertStringQueryParam": func() ConversionType {
+				return ConvertStringQueryParam
+			},
+			"ConvertIntQueryParam": func() ConversionType {
+				return ConvertIntQueryParam
+			},
 		}).
 		Option("missingkey=error").
 		Parse(adaptorTemplate)
@@ -50,6 +69,7 @@ import (
 	"net/http"
 	"reflect"
 	"encoding/json"
+	"strconv"
 	"fmt"
 	"log"
 )
@@ -58,47 +78,68 @@ import (
 var _ json.Delim
 var _ log.Logger
 var _ fmt.Formatter
+var _ strconv.NumError
 
 func init(){
 	var dummy func(
-		{{range $_, $arg := .info.Inputs}}
-			{{typename $arg}},
+		{{range $_, $input := .info.Inputs}}
+			{{typename $input.Type}},
 		{{end}}
 	)(
 		{{range $_, $output := .info.Outputs}}
-			{{typename $output}},
+			{{typename $output.Type}},
 		{{end}}
 	)
 
 	typ := reflect.TypeOf(dummy)
 	plumbus.RegisterAdaptor(typ, func(handler interface{}) http.HandlerFunc {
 		callback := handler.(func(
-			{{range $_, $arg := .info.Inputs}}
-				{{typename $arg}},
+			{{range $_, $input := .info.Inputs}}
+				{{typename $input.Type}},
 			{{end}}
 		)(
 			{{range $_, $output := .info.Outputs}}
-				{{typename $output}},
+				{{typename $output.Type}},
 			{{end}}
 		))
 
 		return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request){
+			{{if .info.UsesQueryParams}}
+				queryParams := req.URL.Query()
+			{{end}}
 			{{$info := .info}}
 			{{range $i, $arg := $info.Inputs}}
-				var arg{{$i}} {{typename $arg}}
-				{{if eq $i $info.RequestBodyIndex}}
-					{
-						if err := json.NewDecoder(req.Body).Decode(&arg{{$i}}); err != nil {
-							msg := fmt.Sprintf("{\"error\": \"decoding json: %s\"}", err.Error())
-							http.Error(res, msg, http.StatusBadRequest)
-							return
-						}
+				var arg{{$i}} {{typename $arg.Type -}}
+				{{if eq $arg.ConversionType ConvertBody}}
+					if err := json.NewDecoder(req.Body).Decode(&arg{{$i}}); err != nil {
+						msg := fmt.Sprintf("{\"error\": \"decoding json: %s\"}", err.Error())
+						http.Error(res, msg, http.StatusBadRequest)
+						return
 					}
-				{{else}}
+				{{else if eq $arg.ConversionType ConvertInterface}}
+					{{if $arg.IsPointer}}
+						arg{{$i}} = new({{typenameElem $arg.Type}})
+					{{end}}
 					if err := arg{{$i}}.FromRequest(req); err != nil {
 						plumbus.HandleResponseError(res, req, err)
 						return
 					}
+				{{else if eq $arg.ConversionType ConvertStringQueryParam}}
+					arg{{$i}} = {{typename $arg.Type}}(queryParams.Get("{{$arg.Name}}"))
+				{{else if eq $arg.ConversionType ConvertIntQueryParam}}
+					queryStr := queryParams.Get("{{$arg.Name}}")
+					queryInt, err := strconv.Atoi(queryStr)
+					if err != nil {
+						plumbus.HandleResponseError(
+							res, req,
+							plumbus.Errorf(
+								http.StatusBadRequest,
+								"query param '{{$arg.Name}}' expected to be integer value",
+							),
+						)
+						return
+					}
+					arg{{$i}} = {{typename $arg.Type}}(queryInt)
 				{{end}}
 			{{end}}
 
@@ -109,7 +150,7 @@ func init(){
 
 			callback(
 				{{range $i, $_ := .info.Inputs}}
-				arg{{$i}},
+					arg{{$i}},
 				{{end}}
 			)
 
