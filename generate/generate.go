@@ -125,21 +125,70 @@ func init(){
 						return
 					}
 				{{else if eq $arg.ConversionType ConvertStringQueryParam}}
-					arg{{$i}} = {{typename $arg.Type}}(queryParams.Get("{{$arg.Name}}"))
+				  {{if $arg.IsPointer}}
+						if l, sent := queryParams["{{$arg.Name}}"]; sent && len(l) > 0{
+							arg{{$i}} = new({{typenameElem $arg.Type}})
+							*arg{{$i}} = ({{typenameElem $arg.Type}})(l[0])
+						}
+					{{else}}
+						if l, sent := queryParams["{{$arg.Name}}"]; sent && len(l) > 0{
+							arg{{$i}} = {{typename $arg.Type}}(l[0])
+						} else {
+							plumbus.HandleResponseError(
+								res, req,
+								plumbus.Errorf(
+									http.StatusBadRequest,
+									"missing required query parameter '{{$arg.Name}}'",
+								),
+							)
+							return
+						}
+					{{end}}
 				{{else if eq $arg.ConversionType ConvertIntQueryParam}}
-					queryStr := queryParams.Get("{{$arg.Name}}")
-					queryInt, err := strconv.Atoi(queryStr)
-					if err != nil {
-						plumbus.HandleResponseError(
-							res, req,
-							plumbus.Errorf(
-								http.StatusBadRequest,
-								"query param '{{$arg.Name}}' expected to be integer value",
-							),
-						)
-						return
+				  {
+						{{if $arg.IsPointer}}
+							if l, sent := queryParams["{{$arg.Name}}"]; sent && len(l) > 0 {
+								queryInt, err := strconv.Atoi(l[0])
+								if err != nil {
+									plumbus.HandleResponseError(
+										res, req,
+										plumbus.Errorf(
+											http.StatusBadRequest,
+											"query param '{{$arg.Name}}' expected to be integer value",
+										),
+									)
+									return
+								}
+								arg{{$i}} = new({{typenameElem $arg.Type}})
+								*arg{{$i}} = {{typenameElem $arg.Type}}(queryInt)
+							}
+						{{else}}
+							l, sent := queryParams["{{$arg.Name}}"]
+							if !sent || len(l) == 0 {
+								plumbus.HandleResponseError(
+									res, req,
+									plumbus.Errorf(
+										http.StatusBadRequest,
+										"missing required query parameter '{{$arg.Name}}'",
+									),
+								)
+								return
+							}
+							queryInt, err := strconv.Atoi(l[0])
+							if err != nil {
+								plumbus.HandleResponseError(
+									res, req,
+									plumbus.Errorf(
+										http.StatusBadRequest,
+										"query param '{{$arg.Name}}' expected to be integer value",
+									),
+								)
+								return
+							}
+
+							arg{{$i}} = {{typename $arg.Type}}(queryInt)
+						{{end}}
 					}
-					arg{{$i}} = {{typename $arg.Type}}(queryInt)
 				{{end}}
 			{{end}}
 

@@ -1,7 +1,10 @@
 package handlers
 
-import "net/http"
-import . "github.com/jargv/plumbus"
+import (
+	"net/http"
+
+	. "github.com/jargv/plumbus"
+)
 
 type ReturnStructResult struct {
 	Message string
@@ -75,4 +78,19 @@ var RequiredRequestParamAmount int
 func RequiredRequestParamHandler(food foodQueryParam, a amountQueryParam) {
 	RequiredRequestParamAmount = int(a)
 	RequiredRequestParamResult = string(food)
+}
+
+var (
+	OptionalRequestParamResult string = "not set"
+	OptionalRequestParamAmount int    = 0
+)
+
+//go:generate plumbus OptionalRequestParamHandler
+func OptionalRequestParamHandler(amount *amountQueryParam, food *foodQueryParam) {
+	if food != nil {
+		OptionalRequestParamResult = string(*food)
+	}
+	if amount != nil {
+		OptionalRequestParamAmount = int(*amount)
+	}
 }

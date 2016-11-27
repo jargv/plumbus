@@ -188,66 +188,70 @@ func TestRequiredRequestParam(t *testing.T) {
 	}
 }
 
-// func TestOptionalRequestParam(t *testing.T) {
-// 	type foodQueryParam string
-// 	type amountQueryParam int
-// 	result := "not set"
-// 	amount := 0
-// 	server := httptest.NewServer(HandlerFunc(func(a *amountQueryParam, food *foodQueryParam) {
-// 		if food != nil {
-// 			result = string(*food)
-// 		}
-// 		if a != nil {
-// 			amount = int(*a)
-// 		}
-// 	}))
+func TestOptionalRequestParam(t *testing.T) {
+	server := httptest.NewServer(HandlerFunc(OptionalRequestParamHandler))
 
-// 	//test that it's not required
-// 	resp, err := http.Get(server.URL)
-// 	if err != nil {
-// 		t.Fatalf("makeing request: %v\n", err)
-// 	}
+	//test that it's not required
+	resp, err := http.Get(server.URL)
+	if err != nil {
+		t.Fatalf("makeing request: %v\n", err)
+	}
 
-// 	if resp.StatusCode != http.StatusOK {
-// 		t.Fatalf(`resp.StatusCode != http.StatusOK, resp.StatusCode == "%v"`, resp.StatusCode)
-// 	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf(`resp.StatusCode != http.StatusOK, resp.StatusCode == "%v"`, resp.StatusCode)
+	}
 
-// 	if result != "not set" {
-// 		t.Fatalf(`result != "not set", result == "%v"`, result)
-// 	}
+	if OptionalRequestParamResult != "not set" {
+		t.Fatalf(
+			`OptionalRequestParamResult != "not set", OptionalRequestParamResult == "%v"`,
+			OptionalRequestParamResult,
+		)
+	}
 
-// 	//test that it's not required (on the second, int param)
-// 	resp, err = http.Get(server.URL + "?food=nachos")
-// 	if err != nil {
-// 		t.Fatalf("makeing request: %v\n", err)
-// 	}
+	//test that it's not required (on the second, int param)
+	resp, err = http.Get(server.URL + "?food=nachos")
+	if err != nil {
+		t.Fatalf("makeing request: %v\n", err)
+	}
 
-// 	if resp.StatusCode != http.StatusOK {
-// 		t.Fatalf(`resp.StatusCode != http.StatusOK, resp.StatusCode == "%v"`, resp.StatusCode)
-// 	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf(`resp.StatusCode != http.StatusOK, resp.StatusCode == "%v"`, resp.StatusCode)
+	}
 
-// 	if result != "nachos" {
-// 		t.Fatalf(`result != "not set", result == "%v"`, result)
-// 	}
+	if OptionalRequestParamResult != "nachos" {
+		t.Fatalf(
+			`OptionalRequestParamResult != "not set", OptionalRequestParamResult == "%v"`,
+			OptionalRequestParamResult,
+		)
+	}
 
-// 	if amount != 0 {
-// 		t.Fatalf(`amount != 0, amount == "%v"`, amount)
-// 	}
+	if OptionalRequestParamAmount != 0 {
+		t.Fatalf(
+			`OptionalRequestParamAmount != 0, OptionalRequestParamAmount == "%v"`,
+			OptionalRequestParamAmount,
+		)
+	}
 
-// 	//test that it's passed to the handler
-// 	_, err = http.Get(server.URL + "?food=nachos&amount=10")
-// 	if err != nil {
-// 		t.Fatalf("makeing request: %v\n", err)
-// 	}
+	//test that it's passed to the handler
+	_, err = http.Get(server.URL + "?food=nachos&amount=10")
+	if err != nil {
+		t.Fatalf("makeing request: %v\n", err)
+	}
 
-// 	if result != "nachos" {
-// 		t.Fatalf(`result != "nachos", result == "%v"`, result)
-// 	}
+	if OptionalRequestParamResult != "nachos" {
+		t.Fatalf(
+			`OptionalRequestParamResult != "nachos", OptionalRequestParamResult == "%v"`,
+			OptionalRequestParamResult,
+		)
+	}
 
-// 	if amount != 10 {
-// 		t.Fatalf(`amount != 10, amount == "%v"`, amount)
-// 	}
-// }
+	if OptionalRequestParamAmount != 10 {
+		t.Fatalf(
+			`OptionalRequestParamAmount != 10, OptionalRequestParamAmount == "%v"`,
+			OptionalRequestParamAmount,
+		)
+	}
+}
 
 // // type UserId struct {
 // // }
