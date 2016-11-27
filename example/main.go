@@ -23,10 +23,17 @@ func main() {
 	mux.Handle("/user/:userId", plumbus.ByMethod{
 		PATCH: handlers.EditUser,
 		GET:   handlers.GetUser,
-	})
+	}, `
+	  this should be the same on patch and get
+	`)
 	mux.Handle("/docs", func() interface{} {
 		return mux.Documentation()
-	})
+	}, `
+	  this endpoint gives you back the documentation
+		metatdata. Note that this is just a giant json
+		object with the data. Real documentation would
+		require some rendering.
+	`)
 
 	log.Println("listening on port 8000")
 	http.ListenAndServe(":8000", mux)

@@ -11,19 +11,20 @@ type Paths struct {
 	handler         http.Handler
 	subpaths        map[string]*Paths
 	variables       map[string]*Paths
+	documentation   []string
 	originalHandler interface{}
 }
 
-func (p *Paths) Handle(path string, handler interface{}) {
+func (p *Paths) Handle(path string, handler interface{}, documentation ...string) {
 	segments := getSegments(path)
-	success := p.insertSegments(segments, handler)
+	success := p.insertSegments(segments, handler, documentation)
 	if !success {
 		//todo: add the route to this message
 		panic(fmt.Errorf("duplicate route for path %s", path))
 	}
 }
 
-func (p *Paths) insertSegments(segments []string, handler interface{}) bool {
+func (p *Paths) insertSegments(segments []string, handler interface{}, documentation []string) bool {
 	if p.subpaths == nil {
 		p.subpaths = map[string]*Paths{}
 	}
@@ -37,6 +38,7 @@ func (p *Paths) insertSegments(segments []string, handler interface{}) bool {
 		}
 		p.handler = HandlerFunc(handler)
 		p.originalHandler = handler
+		p.documentation = documentation
 		return true
 	}
 
@@ -55,7 +57,7 @@ func (p *Paths) insertSegments(segments []string, handler interface{}) bool {
 		insertMap[segment] = sub
 	}
 
-	return sub.insertSegments(segments[1:], handler)
+	return sub.insertSegments(segments[1:], handler, documentation)
 }
 
 func (p *Paths) findHandler(url *url.URL) http.Handler {
@@ -102,15 +104,15 @@ func (p *Paths) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	handler.ServeHTTP(res, req)
 }
 
-func (p *Paths) flatten() map[string]interface{} {
-	res := map[string]interface{}{}
+func (p *Paths) flatten() map[string]*Paths {
+	res := map[string]*Paths{}
 	p.flattenMap("", res)
 	return res
 }
 
-func (p *Paths) flattenMap(path string, m map[string]interface{}) {
+func (p *Paths) flattenMap(path string, m map[string]*Paths) {
 	if p.originalHandler != nil {
-		m[path] = p.originalHandler
+		m[path] = p
 	}
 	for p, sub := range p.subpaths {
 		sub.flattenMap(path+"/"+p, m)

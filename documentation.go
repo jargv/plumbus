@@ -17,6 +17,7 @@ type documenter interface {
 type Endpoint struct {
 	Method       string               `json:"method,omitempty"`
 	Path         string               `json:"path"`
+	Description  string               `json:"description,omitempty"`
 	RequestBody  string               `json:"requestBody,omitempty"`
 	ResponseBody string               `json:"responseBody,omitempty"`
 	Params       map[string]ParamInfo `json:"params,omitempty"`
@@ -47,37 +48,41 @@ func (sm *ServeMux) Documentation() *Documentation {
 }
 
 func (d *Documentation) collectEndpoints(paths *Paths) {
-	for path, handler := range paths.flatten() {
-		d.collectEndpoint(path, handler)
+	for path, segment := range paths.flatten() {
+		docs := cleanupText(strings.Join(segment.documentation, "\n"))
+		d.collectEndpoint(path, segment.originalHandler, docs)
 	}
 }
 
-func (d *Documentation) collectEndpoint(path string, handler interface{}) {
+func (d *Documentation) collectEndpoint(path string, handler interface{}, docs string) {
 	switch val := handler.(type) {
 	case http.HandlerFunc, func(http.ResponseWriter, *http.Request):
 		d.Endpoints = append(d.Endpoints, &Endpoint{
-			Path: path,
+			Path:        path,
+			Description: docs,
 		})
 
 	case ByMethod:
-		d.collectMethodEndpoints(path, &val)
+		d.collectMethodEndpoints(path, &val, docs)
 
 	case *ByMethod:
-		d.collectMethodEndpoints(path, val)
+		d.collectMethodEndpoints(path, val, docs)
 
 	default:
 		e := d.handlerFunctionToEndpoint(handler)
 		e.Path = path
+		e.Description = docs
 		d.Endpoints = append(d.Endpoints, e)
 	}
 }
 
-func (d *Documentation) collectMethodEndpoints(path string, handlers *ByMethod) {
+func (d *Documentation) collectMethodEndpoints(path string, handlers *ByMethod, docs string) {
 	addHandler := func(method string, handler interface{}) {
 		if handler != nil {
 			e := d.handlerFunctionToEndpoint(handler)
 			e.Method = method
 			e.Path = path
+			e.Description = docs
 			d.Endpoints = append(d.Endpoints, e)
 		}
 	}
@@ -128,6 +133,17 @@ func (d *Documentation) handlerFunctionToEndpoint(handler interface{}) *Endpoint
 			}
 
 			e.Params[input.Name] = p
+		default:
+			log.Fatalf("unexpected conversion type %s", t)
+		}
+	}
+
+	for _, output := range info.Outputs {
+		switch t := output.ConversionType; t {
+		case generate.ConvertBody:
+			e.ResponseBody = d.mkType(output.Type)
+		case generate.ConvertError:
+			//not much we can do here
 		default:
 			log.Fatalf("unexpected conversion type %s", t)
 		}

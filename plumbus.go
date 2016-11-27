@@ -41,7 +41,7 @@ func NewServeMux() *ServeMux {
 	}
 }
 
-func (sm *ServeMux) Handle(route string, fn interface{}) {
+func (sm *ServeMux) Handle(route string, fn interface{}, documentation ...string) {
 	defer func() {
 		err := recover()
 		if err, ok := err.(error); ok {
@@ -49,7 +49,7 @@ func (sm *ServeMux) Handle(route string, fn interface{}) {
 		}
 	}()
 
-	sm.Paths.Handle(route, fn)
+	sm.Paths.Handle(route, fn, documentation...)
 }
 
 func HandlerFunc(handler interface{}) http.Handler {
