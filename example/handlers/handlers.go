@@ -69,7 +69,13 @@ func GetUser(id userIdQueryParam) *User {
 	return nil
 }
 
+type topping struct {
+	Name   string
+	Amount int
+}
+
 type Nachos struct {
+	Toppings []*topping
 }
 
 func (n *Nachos) Documentation() string {
@@ -86,4 +92,10 @@ func (n *Nachos) ToResponse(http.ResponseWriter) error {
 
 func HandleCustom(nachos *Nachos) *Nachos {
 	return nachos
+}
+
+type NachoBody Nachos
+
+func GetNachos() *NachoBody {
+	return nil
 }

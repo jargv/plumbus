@@ -36,13 +36,18 @@ type ParamInfo struct {
 }
 
 type Documentation struct {
-	Endpoints []*Endpoint      `json:"endpoints"`
-	Types     map[string]*Type `json:"types,omitempty"`
+	Endpoints    []*Endpoint      `json:"endpoints"`
+	Types        map[string]*Type `json:"types,omitempty"`
+	Introduction []string
 }
 
-func (sm *ServeMux) Documentation() *Documentation {
+func (sm *ServeMux) Documentation(introduction ...string) *Documentation {
+	for i, line := range introduction {
+		introduction[i] = cleanupText(line)
+	}
 	d := &Documentation{
-		Types: map[string]*Type{},
+		Types:        map[string]*Type{},
+		Introduction: introduction,
 	}
 	d.collectEndpoints(sm.Paths)
 	return d

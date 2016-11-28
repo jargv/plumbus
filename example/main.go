@@ -27,8 +27,14 @@ func main() {
 	  this should be the same on patch and get
 	`)
 	mux.Handle("/custom", handlers.HandleCustom)
+	mux.Handle("/nachos", handlers.GetNachos)
 	mux.Handle("/docs", func() interface{} {
-		return mux.Documentation()
+		return mux.Documentation(`
+		  this is the documentation for the top-level
+			mux of this thing
+		`, `
+		  this is a second thing
+		`)
 	}, `
 	  this endpoint gives you back the documentation
 		metatdata. Note that this is just a giant json
