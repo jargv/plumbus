@@ -113,7 +113,7 @@ func (d *Documentation) handlerFunctionToEndpoint(handler interface{}) *Endpoint
 		switch t := input.ConversionType; t {
 		case generate.ConvertBody:
 			e.RequestBody = d.mkType(input.Type)
-		case generate.ConvertInterface:
+		case generate.ConvertCustom:
 			val := reflect.Zero(input.Type).Interface()
 			if doc, ok := val.(documenter); ok {
 				e.Notes = append(e.Notes, cleanupText(doc.Documentation()))
@@ -148,7 +148,7 @@ func (d *Documentation) handlerFunctionToEndpoint(handler interface{}) *Endpoint
 		switch t := output.ConversionType; t {
 		case generate.ConvertBody:
 			e.ResponseBody = d.mkType(output.Type)
-		case generate.ConvertInterface:
+		case generate.ConvertCustom:
 			val := reflect.Zero(output.Type).Interface()
 			if doc, ok := val.(documenter); ok {
 				e.Notes = append(e.Notes, cleanupText(doc.Documentation()))

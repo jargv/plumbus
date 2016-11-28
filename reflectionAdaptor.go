@@ -29,7 +29,7 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 					http.Error(res, msg, http.StatusBadRequest)
 					return
 				}
-			case generate.ConvertInterface:
+			case generate.ConvertCustom:
 				interfaceVal := val
 				if converter.IsPointer {
 					val.Elem().Set(reflect.New(converter.Type.Elem()))
@@ -67,7 +67,7 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 			switch t := converter.ConversionType; t {
 			case generate.ConvertBody:
 				//do nothing, the response body has to be sent last
-			case generate.ConvertInterface:
+			case generate.ConvertCustom:
 				err := results[i].Interface().(ToResponse).ToResponse(res)
 				if err != nil {
 					HandleResponseError(res, req, err)

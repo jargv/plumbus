@@ -35,8 +35,8 @@ func Adaptor(handler interface{}, filepath, pkg string) error {
 			"ConvertError": func() ConversionType {
 				return ConvertError
 			},
-			"ConvertInterface": func() ConversionType {
-				return ConvertInterface
+			"ConvertCustom": func() ConversionType {
+				return ConvertCustom
 			},
 			"ConvertStringQueryParam": func() ConversionType {
 				return ConvertStringQueryParam
@@ -116,7 +116,7 @@ func init(){
 						http.Error(res, msg, http.StatusBadRequest)
 						return
 					}
-				{{else if eq $arg.ConversionType ConvertInterface}}
+				{{else if eq $arg.ConversionType ConvertCustom}}
 					{{if $arg.IsPointer}}
 						arg{{$i}} = new({{typenameElem $arg.Type}})
 					{{end}}

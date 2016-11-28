@@ -17,7 +17,7 @@ func (ct ConversionType) isQueryParam() bool {
 const (
 	ConvertBody ConversionType = iota
 	ConvertError
-	ConvertInterface
+	ConvertCustom
 
 	ConvertStringQueryParam
 	ConvertIntQueryParam
@@ -83,7 +83,7 @@ func outputConverter(typ reflect.Type) *Converter {
 
 	switch true {
 	case typ.Implements(interfaceType) || reflect.PtrTo(typ).Implements(interfaceType):
-		conv.ConversionType = ConvertInterface
+		conv.ConversionType = ConvertCustom
 	case typ.Implements(errorType):
 		conv.ConversionType = ConvertError
 	default:
@@ -103,7 +103,7 @@ func inputConverter(typ reflect.Type) *Converter {
 		return &Converter{
 			Type:           typ,
 			IsPointer:      typ.Kind() == reflect.Ptr,
-			ConversionType: ConvertInterface,
+			ConversionType: ConvertCustom,
 		}
 	}
 
