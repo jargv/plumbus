@@ -21,6 +21,7 @@ type Endpoint struct {
 	RequestBody  string               `json:"requestBody,omitempty"`
 	ResponseBody string               `json:"responseBody,omitempty"`
 	Params       map[string]ParamInfo `json:"params,omitempty"`
+	Notes        []string             `json:"notes,omitempty"`
 }
 
 type Type struct {
@@ -112,6 +113,11 @@ func (d *Documentation) handlerFunctionToEndpoint(handler interface{}) *Endpoint
 		switch t := input.ConversionType; t {
 		case generate.ConvertBody:
 			e.RequestBody = d.mkType(input.Type)
+		case generate.ConvertInterface:
+			val := reflect.Zero(input.Type).Interface()
+			if doc, ok := val.(documenter); ok {
+				e.Notes = append(e.Notes, cleanupText(doc.Documentation()))
+			}
 		case generate.ConvertIntQueryParam, generate.ConvertStringQueryParam:
 			p := ParamInfo{
 				Required: input.Type.Kind() != reflect.Ptr,
@@ -142,6 +148,11 @@ func (d *Documentation) handlerFunctionToEndpoint(handler interface{}) *Endpoint
 		switch t := output.ConversionType; t {
 		case generate.ConvertBody:
 			e.ResponseBody = d.mkType(output.Type)
+		case generate.ConvertInterface:
+			val := reflect.Zero(output.Type).Interface()
+			if doc, ok := val.(documenter); ok {
+				e.Notes = append(e.Notes, cleanupText(doc.Documentation()))
+			}
 		case generate.ConvertError:
 			//not much we can do here
 		default:

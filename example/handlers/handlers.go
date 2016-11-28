@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"net/http"
 	"sync"
 
 	"github.com/jargv/plumbus"
@@ -66,4 +67,23 @@ func EditUser(id userIdQueryParam, user *User) {
 
 func GetUser(id userIdQueryParam) *User {
 	return nil
+}
+
+type Nachos struct {
+}
+
+func (n *Nachos) Documentation() string {
+	return "this is a note that accompanies this type"
+}
+
+func (n *Nachos) FromRequest(*http.Request) error {
+	return nil
+}
+
+func (n *Nachos) ToResponse(http.ResponseWriter) error {
+	return nil
+}
+
+func HandleCustom(nachos *Nachos) *Nachos {
+	return nachos
 }

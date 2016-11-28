@@ -26,6 +26,7 @@ func main() {
 	}, `
 	  this should be the same on patch and get
 	`)
+	mux.Handle("/custom", handlers.HandleCustom)
 	mux.Handle("/docs", func() interface{} {
 		return mux.Documentation()
 	}, `
