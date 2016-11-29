@@ -14,6 +14,12 @@ type documenter interface {
 	Documentation() string
 }
 
+type Documentation struct {
+	Endpoints    []*Endpoint      `json:"endpoints"`
+	Types        map[string]*Type `json:"types,omitempty"`
+	Introduction []string
+}
+
 type Endpoint struct {
 	Method       string               `json:"method,omitempty"`
 	Path         string               `json:"path"`
@@ -33,12 +39,6 @@ type ParamInfo struct {
 	Type        string `json:"type"`
 	Required    bool   `json:"required"`
 	Description string `json:"description,omitempty"`
-}
-
-type Documentation struct {
-	Endpoints    []*Endpoint      `json:"endpoints"`
-	Types        map[string]*Type `json:"types,omitempty"`
-	Introduction []string
 }
 
 func (sm *ServeMux) Documentation(introduction ...string) *Documentation {

@@ -28,19 +28,14 @@ func main() {
 	`)
 	mux.Handle("/custom", handlers.HandleCustom)
 	mux.Handle("/nachos", handlers.GetNachos)
-	mux.Handle("/docs", func() interface{} {
-		return mux.Documentation(`
-		  this is the documentation for the top-level
-			mux of this thing
-		`, `
-		  this is a second thing
-		`)
-	}, `
-	  this endpoint gives you back the documentation
-		metatdata. Note that this is just a giant json
-		object with the data. Real documentation would
-		require some rendering.
-	`)
+	mux.Handle("/spec", func() interface{} {
+		return mux.Documentation()
+	})
+	mux.Handle("/docs", mux.DocumentationHTML(`
+	  This is the top-level documentation. It will be a paragraph
+	`, `
+	  The next paragraph can come next. And so on.
+	`))
 
 	log.Println("listening on port 8000")
 	http.ListenAndServe(":8000", mux)
