@@ -94,6 +94,7 @@ var templateString string = `
 	import (
 		"github.com/jargv/plumbus/generate"
 		"os"
+		"os/exec"
 		"log"
 	)
 
@@ -108,6 +109,13 @@ var templateString string = `
 		if err != nil {
 			log.Printf("couldn't generate: %s", err)
 			os.Exit(1)
+		}
+
+		cmd := exec.Command("goimports", "-w", "{{.Path}}")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			log.Printf(string(out))
+			panic(err)
 		}
 	}
 `
