@@ -18,7 +18,10 @@ func ReturnStructHandler() ReturnStructResult {
 }
 
 //go:generate plumbus ReturnErrorHandler
+var ReturnErrorCalled bool
+
 func ReturnErrorHandler() (string, error) {
+	ReturnErrorCalled = true
 	return "", Errorf(http.StatusBadRequest, "result")
 }
 

@@ -55,7 +55,6 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 
 		if info.LastIsError {
 			last := results[len(results)-1]
-			results = results[:len(results)-1]
 			if !last.IsNil() {
 				err := last.Interface().(error)
 				HandleResponseError(res, req, err)
@@ -65,6 +64,8 @@ func infoToDynamicAdaptor(info *generate.Info, handler reflect.Value) http.Handl
 
 		for i, converter := range info.Outputs {
 			switch t := converter.ConversionType; t {
+			case generate.ConvertError:
+				//this would have been handled above if there were an error
 			case generate.ConvertBody:
 				//do nothing, the response body has to be sent last
 			case generate.ConvertCustom:

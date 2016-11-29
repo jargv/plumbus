@@ -48,6 +48,10 @@ func TestReturnError(t *testing.T) {
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Error("statusCode != 'http.StatusBadRequest', statusCode == %d", resp.StatusCode)
 	}
+
+	if ReturnErrorCalled != true {
+		t.Fatalf(`ReturnErrorCalled != true, ReturnErrorCalled == "%v"`, ReturnErrorCalled)
+	}
 }
 
 func TestRequestBody(t *testing.T) {
