@@ -5,6 +5,9 @@ handler, as long as you implement a few interfaces to define
 how that function's arguments, results, and errors are mapped to
 the http request and response.
 
+![Plumbus](https://github.com/nicksrandall/plumbus/blob/master/assets/plumbus.jpg?raw=true)
+> Image Credit: wilhughes3d.wixsite.com/wilhughes 
+
 ## Arguments
 Arguments must implement `plumbus.FromRequest`, which looks
 like:
